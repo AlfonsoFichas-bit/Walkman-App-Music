@@ -19,23 +19,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val database = AppDatabase.getInstance(getApplication())
 
-    private val _folder = MutableStateFlow<SelectedFolder?>(null)
-    val folder: StateFlow<SelectedFolder?> = _folder.asStateFlow()
+    private val _folders = MutableStateFlow<List<SelectedFolder>>(emptyList())
+    val folders: StateFlow<List<SelectedFolder>> = _folders.asStateFlow()
 
     private val _folderReady = MutableStateFlow(false)
     val folderReady: StateFlow<Boolean> = _folderReady.asStateFlow()
 
     init {
         viewModelScope.launch {
-            database.folderDao().observeFolder().collect { saved ->
-                _folder.value = saved
+            database.folderDao().observeFolders().collect { saved ->
+                _folders.value = saved
                 FolderState.set(saved)
                 _folderReady.value = true
             }
         }
     }
 
-    fun pickFolder(context: Context, uri: Uri) {
+    fun addFolder(context: Context, uri: Uri) {
         try {
             context.contentResolver.takePersistableUriPermission(
                 uri,
@@ -45,15 +45,26 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
         val folder = FolderResolver.resolve(context, uri) ?: return
         viewModelScope.launch {
-            database.folderDao().save(folder)
+            database.folderDao().add(folder)
         }
-        FolderState.set(folder)
     }
 
-    fun clearFolder() {
+    fun removeFolder(folder: SelectedFolder) {
+        try {
+            getApplication<Application>().contentResolver.releasePersistableUriPermission(
+                Uri.parse(folder.treeUri),
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        } catch (_: Exception) {
+        }
+        viewModelScope.launch {
+            database.folderDao().delete(folder.treeUri)
+        }
+    }
+
+    fun clearFolders() {
         viewModelScope.launch {
             database.folderDao().clear()
         }
-        FolderState.set(null)
     }
 }

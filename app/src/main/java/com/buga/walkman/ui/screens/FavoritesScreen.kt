@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.buga.walkman.R
 import com.buga.walkman.ui.components.EmptyState
+import com.buga.walkman.ui.components.LocalPlayerCoverAccent
 import com.buga.walkman.ui.components.PlaybackFabMenu
 import com.buga.walkman.ui.components.SongListItem
 import com.buga.walkman.viewmodel.PlayerControllerViewModel
@@ -40,6 +41,8 @@ fun FavoritesScreen(
 ) {
     val favoriteSongs by playerViewModel.favoriteSongs.collectAsState()
     val playerState by playerViewModel.state.collectAsState()
+    val accent = LocalPlayerCoverAccent.current.takeIf { it != Color.Unspecified }
+        ?: playerState.accentHighlight
 
     Box(
         modifier = Modifier
@@ -79,7 +82,9 @@ fun FavoritesScreen(
                             song = song,
                             isCurrentAndPlaying = playerState.currentSong?.id == song.id &&
                                 playerState.isPlaying,
-                            onClick = { playerViewModel.playSongs(favoriteSongs, index) }
+                            onClick = { playerViewModel.playSongs(favoriteSongs, index) },
+                            onPlayNext = { playerViewModel.playSongsNext(listOf(song)) },
+                            onAddToQueue = { playerViewModel.addSongsToQueue(listOf(song)) }
                         )
                     }
                 }
@@ -88,9 +93,9 @@ fun FavoritesScreen(
 
         if (favoriteSongs.isNotEmpty()) {
             PlaybackFabMenu(
-                accent = MaterialTheme.colorScheme.primary,
+                accent = accent,
                 onPlayAll = { playerViewModel.playSongs(favoriteSongs, 0) },
-                onShuffle = { playerViewModel.playSongs(favoriteSongs.shuffled(), 0) },
+                onShuffle = { playerViewModel.playShuffled(favoriteSongs) },
                 enabled = true,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)

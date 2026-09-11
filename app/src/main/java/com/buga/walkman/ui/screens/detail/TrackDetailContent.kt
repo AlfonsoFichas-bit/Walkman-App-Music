@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -28,6 +30,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,7 +45,9 @@ import androidx.compose.ui.unit.dp
 import com.buga.walkman.R
 import com.buga.walkman.model.Song
 import com.buga.walkman.ui.components.CoverImage
+import com.buga.walkman.ui.components.LocalPlayerCoverAccent
 import com.buga.walkman.ui.components.PlaybackFabMenu
+import com.buga.walkman.ui.components.TrackActionsMenu
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,11 +64,15 @@ internal fun TrackDetailContent(
     headerBackground: Color? = null,
     headerPlaceholder: (@Composable () -> Unit)? = null,
     headerContent: (@Composable () -> Unit)? = null,
-    accent: Color = MaterialTheme.colorScheme.primary,
+    accent: Color = LocalPlayerCoverAccent.current.takeIf { it != Color.Unspecified }
+        ?: MaterialTheme.colorScheme.primary,
     tabs: List<String> = emptyList(),
     selectedTab: Int = 0,
     onTabSelected: (Int) -> Unit = {},
-    albumGrid: (LazyListScope.() -> Unit)? = null
+    albumGrid: (LazyListScope.() -> Unit)? = null,
+    onPlayNextItem: ((Song) -> Unit)? = null,
+    onAddToQueueItem: ((Song) -> Unit)? = null,
+    onDeleteItem: ((Song) -> Unit)? = null
 ) {
     val onAccent = if (accent.luminance() > 0.5f) Color.Black else Color.White
     val segmentedColors = SegmentedButtonDefaults.colors(
@@ -175,6 +187,7 @@ SegmentedButton(
                     )
                 }
                 itemsIndexed(tracks, key = { _, song -> song.id }) { index, song ->
+                var menuExpanded by remember { mutableStateOf(false) }
                 ListItem(
                     headlineContent = {
                         Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -190,11 +203,31 @@ SegmentedButton(
                         )
                     },
                     trailingContent = {
-                        Text(
-                            text = song.formatDuration(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = song.formatDuration(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (onPlayNextItem != null || onAddToQueueItem != null || onDeleteItem != null) {
+                                Box {
+                                    IconButton(onClick = { menuExpanded = true }) {
+                                        Icon(
+                                            imageVector = Icons.Default.MoreVert,
+                                            contentDescription = stringResource(R.string.cd_more),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    TrackActionsMenu(
+                                        expanded = menuExpanded,
+                                        onDismissRequest = { menuExpanded = false },
+                                        onPlayNext = onPlayNextItem?.let { next -> { next(song) } },
+                                        onAddToQueue = onAddToQueueItem?.let { queue -> { queue(song) } },
+                                        onDelete = onDeleteItem?.let { delete -> { delete(song) } }
+                                    )
+                                }
+                            }
+                        }
                     },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     modifier = Modifier.clickable { onPlayAt(index) }

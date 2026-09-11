@@ -73,7 +73,7 @@ internal fun WalkmanScaffold(
                                 brush = Brush.verticalGradient(
                                     colorStops = arrayOf(
                                         0f to Color.Transparent,
-                                        0.75f to Color.Transparent,
+                                        0.6f to Color.Transparent,
                                         1f to Color.Black
                                     )
                                 ),

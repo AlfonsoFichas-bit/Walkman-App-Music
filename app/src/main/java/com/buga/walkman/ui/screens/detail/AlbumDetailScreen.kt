@@ -16,6 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -24,8 +27,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.buga.walkman.R
+import com.buga.walkman.model.Song
 import com.buga.walkman.ui.components.CoverImage
-import com.buga.walkman.ui.components.InitialsPlaceholder
+import com.buga.walkman.ui.components.DeleteSongDialog
+import com.buga.walkman.ui.components.rememberSongDeleter
 import com.buga.walkman.viewmodel.LibraryViewModel
 import com.buga.walkman.viewmodel.PlayerControllerViewModel
 import com.buga.walkman.viewmodel.TrackListViewModel
@@ -50,6 +55,9 @@ fun AlbumDetailScreen(
     val artist = album?.artist ?: tracks.firstOrNull()?.artist.orEmpty()
     val songCount = album?.songCount ?: tracks.size
 
+    var confirmDeleteSong by remember { mutableStateOf<Song?>(null) }
+    val requestDelete = rememberSongDeleter(playerViewModel)
+
     TrackDetailContent(
         title = "",
         subtitle = "",
@@ -58,7 +66,10 @@ fun AlbumDetailScreen(
         tracks = tracks,
         onBack = onBack,
         onPlayAt = { index -> playerViewModel.playSongs(tracks, index) },
-        onShuffle = { playerViewModel.playSongs(tracks.shuffled(), 0) },
+        onShuffle = { playerViewModel.playShuffled(tracks) },
+        onPlayNextItem = { song -> playerViewModel.playSongsNext(listOf(song)) },
+        onAddToQueueItem = { song -> playerViewModel.addSongsToQueue(listOf(song)) },
+        onDeleteItem = { song -> confirmDeleteSong = song },
         accent = playerState.accentHighlight,
         headerContent = {
             Row(
@@ -69,13 +80,6 @@ fun AlbumDetailScreen(
                     model = album?.albumArtUri ?: tracks.firstOrNull()?.albumArtUri,
                     contentDescription = title,
                     shape = RoundedCornerShape(32.dp),
-                    placeholder = {
-                        InitialsPlaceholder(
-                            title = title,
-                            modifier = Modifier.fillMaxSize(),
-                            shape = RoundedCornerShape(32.dp)
-                        )
-                    },
                     modifier = Modifier.size(160.dp)
                 )
 
@@ -111,4 +115,15 @@ fun AlbumDetailScreen(
             }
         }
     )
+
+    confirmDeleteSong?.let { song ->
+        DeleteSongDialog(
+            song = song,
+            onDismiss = { confirmDeleteSong = null },
+            onConfirm = {
+                confirmDeleteSong = null
+                requestDelete(song)
+            }
+        )
+    }
 }

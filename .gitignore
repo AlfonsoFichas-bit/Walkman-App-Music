@@ -12,8 +12,4 @@
 /captures
 .externalNativeBuild
 .cxx
-.idea
-.vscode
-.zed
-.kotlin
 local.properties

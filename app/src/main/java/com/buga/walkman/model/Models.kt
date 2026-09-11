@@ -52,6 +52,12 @@ data class Artist(
     val songCount: Int
 )
 
+data class Playlist(
+    val id: Long,
+    val name: String,
+    val createdAt: Long
+)
+
 const val EXTRA_SONG_ID = "walkman.song_id"
 const val EXTRA_ALBUM_ID = "walkman.album_id"
 const val EXTRA_ARTIST_ID = "walkman.artist_id"

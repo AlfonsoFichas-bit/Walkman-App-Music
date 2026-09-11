@@ -54,7 +54,7 @@ import com.buga.walkman.model.Artist
 import com.buga.walkman.model.Song
 import com.buga.walkman.ui.components.ArtistPlaceholder
 import com.buga.walkman.ui.components.CoverImage
-import com.buga.walkman.ui.components.InitialsPlaceholder
+import com.buga.walkman.ui.components.LocalPlayerCoverAccent
 import com.buga.walkman.viewmodel.LibraryViewModel
 import com.buga.walkman.viewmodel.PlayerControllerViewModel
 
@@ -139,9 +139,16 @@ fun HomeScreen(
         item(key = "top_songs") {
             SectionTitle(stringResource(R.string.home_top_songs))
             val displayTopSongs = topSongs.ifEmpty { songs.take(5) }
+            val accent = LocalPlayerCoverAccent.current.takeIf { it != Color.Unspecified }
+                ?: playerState.accentHighlight
             TopSongsColumn(
                 topSongs = displayTopSongs,
-                onPlay = { index -> playerViewModel.playSongs(displayTopSongs, index) }
+                accent = accent,
+                onPlay = { index ->
+                    displayTopSongs.getOrNull(index)?.let { song ->
+                        playerViewModel.playSongs(listOf(song), 0)
+                    }
+                }
             )
         }
 
@@ -206,8 +213,7 @@ private fun ListenNextCard(song: Song, onClick: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f),
-            shape = MaterialTheme.shapes.large,
-            placeholder = { InitialsPlaceholder(song.title, song.artist, Modifier.fillMaxSize()) }
+            shape = MaterialTheme.shapes.large
         )
         Text(
             text = song.title,
@@ -286,8 +292,7 @@ private fun QueueCard(
                 model = song.albumArtUri,
                 contentDescription = song.title,
                 modifier = Modifier.fillMaxSize(),
-                shape = MaterialTheme.shapes.large,
-                placeholder = { InitialsPlaceholder(song.title, song.artist, Modifier.fillMaxSize()) }
+                shape = MaterialTheme.shapes.large
             )
             if (isCurrent) {
                 Box(
@@ -338,8 +343,7 @@ private fun AlbumCard(album: Album, onClick: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f),
-            shape = MaterialTheme.shapes.large,
-            placeholder = { InitialsPlaceholder(album.title, album.artist, Modifier.fillMaxSize()) }
+            shape = MaterialTheme.shapes.large
         )
         Text(
             text = album.title,
@@ -362,6 +366,7 @@ private fun AlbumCard(album: Album, onClick: () -> Unit) {
 @Composable
 private fun TopSongsColumn(
     topSongs: List<Song>,
+    accent: Color,
     onPlay: (Int) -> Unit
 ) {
     if (topSongs.isEmpty()) {
@@ -387,7 +392,7 @@ private fun TopSongsColumn(
                     Text(
                         text = "${index + 1}",
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = accent,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.width(28.dp)
                     )
@@ -399,8 +404,7 @@ private fun TopSongsColumn(
                         CoverImage(
                             model = song.albumArtUri,
                             contentDescription = song.title,
-                            modifier = Modifier.fillMaxSize(),
-                            placeholder = { InitialsPlaceholder(song.title, song.artist, Modifier.fillMaxSize()) }
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
                     Column(
@@ -431,7 +435,7 @@ private fun TopSongsColumn(
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = accent
                     )
                 }
             }

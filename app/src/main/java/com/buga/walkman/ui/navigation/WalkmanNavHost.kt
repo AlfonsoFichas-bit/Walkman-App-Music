@@ -12,6 +12,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,6 +57,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.buga.walkman.R
+import com.buga.walkman.MainActivity
 import com.buga.walkman.ui.theme.AdaptiveSystemBars
 import com.buga.walkman.ui.WalkmanScreen
 import com.buga.walkman.viewmodel.LibraryViewModel
@@ -67,6 +71,7 @@ import com.buga.walkman.ui.screens.SettingsScreen
 import com.buga.walkman.viewmodel.SettingsViewModel
 import com.buga.walkman.ui.screens.FolderSetupScreen
 import com.buga.walkman.ui.screens.FavoritesScreen
+import com.buga.walkman.ui.components.LocalPlayerCoverAccent
 import com.buga.walkman.ui.screens.SearchScreen
 
 private val ROOT_ROUTES = setOf("home", "library", "queue", "settings")
@@ -81,10 +86,21 @@ fun WalkmanApp() {
     val playerState by playerViewModel.state.collectAsState()
 
     val folderReady by settingsViewModel.folderReady.collectAsState()
-    val configFolder by settingsViewModel.folder.collectAsState()
-    val setupRequired = folderReady && configFolder == null
+    val configFolders by settingsViewModel.folders.collectAsState()
+    val setupRequired = folderReady && configFolders.isEmpty()
 
     val context = LocalContext.current
+    val mainActivity = context as? MainActivity
+    val openPlayerRequest = mainActivity?.pendingOpenPlayer == true
+
+    var playerExpanded by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(openPlayerRequest) {
+        if (openPlayerRequest) {
+            playerExpanded = true
+            mainActivity?.consumeOpenPlayer()
+        }
+    }
 
     var showRail by remember { mutableStateOf(false) }
     var libraryTab by rememberSaveable { mutableIntStateOf(0) }
@@ -97,7 +113,7 @@ fun WalkmanApp() {
     val currentRoute = backStackEntry?.destination?.route
     val baseRoute = currentRoute?.substringBefore('?')
     val isRootRoute = baseRoute in ROOT_ROUTES
-    val isPlayerRoute = baseRoute == "player"
+    val isPlayerRoute = false
 
     val navItems = listOf(
         NavItem("library", 0, Icons.Filled.MusicNote, Icons.Outlined.MusicNote, stringResource(R.string.tab_songs)),
@@ -139,13 +155,14 @@ fun WalkmanApp() {
         ) {
             FolderSetupScreen(
                 onFolderPicked = { uri ->
-                    settingsViewModel.pickFolder(context, uri)
+                    settingsViewModel.addFolder(context, uri)
                 }
             )
         }
         return
     }
 
+    CompositionLocalProvider(LocalPlayerCoverAccent provides playerState.accentHighlight) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -173,9 +190,7 @@ fun WalkmanApp() {
             onToggleRail = { toggleRail() },
             onOpenSearch = { navController.navigate("search") },
             onTogglePlayPause = playerViewModel::togglePlayPause,
-            onNavigateToPlayer = {
-                navController.navigate("player") { launchSingleTop = true }
-            },
+            onNavigateToPlayer = { playerExpanded = true },
             onNext = playerViewModel::next,
             onPrevious = playerViewModel::previous
         ) { innerPadding ->
@@ -186,8 +201,38 @@ fun WalkmanApp() {
                 settingsViewModel = settingsViewModel,
                 libraryTab = libraryTab,
                 onLibraryTabSelected = { libraryTab = it },
-                modifier = Modifier.padding(innerPadding),
-                onToggleRail = { toggleRail() }
+                modifier = Modifier.padding(innerPadding)
+            )
+        }
+
+        AnimatedVisibility(
+            visible = playerExpanded,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+        ) {
+            WalkmanScreen(
+                viewModel = playerViewModel,
+                onOpenQueue = {
+                    playerExpanded = false
+                    val popped = navController.popBackStack("queue", false)
+                    if (!popped) {
+                        navController.navigate("queue") { launchSingleTop = true }
+                    }
+                },
+                onLogoClick = { toggleRail() },
+                onOpenArtist = { artistId ->
+                    playerExpanded = false
+                    navController.navigate("artist/$artistId")
+                },
+                onOpenAlbum = { albumId ->
+                    playerExpanded = false
+                    navController.navigate("album/$albumId")
+                },
+                onOpenSearch = {
+                    playerExpanded = false
+                    navController.navigate("search")
+                },
+                onCollapse = { playerExpanded = false }
             )
         }
 
@@ -219,6 +264,7 @@ fun WalkmanApp() {
                 if (item.baseRoute == "library") {
                     libraryTab = item.tabIndex
                 }
+                playerExpanded = false
                 navController.navigate(item.route) {
                     popUpTo(navController.graph.findStartDestination().id) {
                         saveState = true
@@ -233,6 +279,7 @@ fun WalkmanApp() {
         )
     }
 }
+}
 
 @Composable
 private fun WalkmanNavHost(
@@ -242,8 +289,7 @@ private fun WalkmanNavHost(
     settingsViewModel: SettingsViewModel,
     libraryTab: Int,
     onLibraryTabSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-    onToggleRail: () -> Unit
+    modifier: Modifier = Modifier
 ) {
     NavHost(
         navController = navController,
@@ -308,22 +354,6 @@ private fun WalkmanNavHost(
                 playerViewModel = playerViewModel,
                 onBack = { navController.popBackStack() },
                 onOpenAlbum = { albumId -> navController.navigate("album/$albumId") }
-            )
-        }
-        composable("player") {
-            WalkmanScreen(
-                viewModel = playerViewModel,
-                onOpenQueue = {
-                    val popped = navController.popBackStack("queue", false)
-                    if (!popped) {
-                        navController.navigate("queue") { launchSingleTop = true }
-                    }
-                },
-                onLogoClick = onToggleRail,
-                onOpenArtist = { artistId -> navController.navigate("artist/$artistId") },
-                onOpenAlbum = { albumId -> navController.navigate("album/$albumId") },
-                onOpenSearch = { navController.navigate("search") },
-                onCollapse = { navController.popBackStack() }
             )
         }
     }

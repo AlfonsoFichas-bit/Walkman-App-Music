@@ -48,9 +48,33 @@ data class PlayHistoryEntity(
 
 @Entity(tableName = "folders")
 data class SelectedFolder(
-    @PrimaryKey val id: Long = 1L,
-    val treeUri: String,
+    @PrimaryKey val treeUri: String,
     val displayName: String,
     val relativePath: String? = null,
     val absolutePath: String? = null
+)
+
+@Entity(tableName = "playlists")
+data class PlaylistEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
+    val name: String,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+@Entity(
+    tableName = "playlist_songs",
+    primaryKeys = ["playlistId", "songId"]
+)
+data class PlaylistSongEntity(
+    val playlistId: Long,
+    val songId: Long,
+    val title: String,
+    val artist: String,
+    val album: String,
+    val albumId: Long,
+    val artistId: Long,
+    val duration: Int,
+    val trackNumber: Int,
+    val uri: String,
+    val addedAt: Long
 )

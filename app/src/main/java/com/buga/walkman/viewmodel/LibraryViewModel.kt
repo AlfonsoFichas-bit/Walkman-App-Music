@@ -3,9 +3,9 @@ package com.buga.walkman.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.buga.walkman.data.LibraryEvents
 import com.buga.walkman.data.MediaRepository
 import com.buga.walkman.data.db.FolderState
-import com.buga.walkman.data.db.SelectedFolder
 import com.buga.walkman.model.Album
 import com.buga.walkman.model.Artist
 import com.buga.walkman.model.Song
@@ -36,19 +36,27 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         viewModelScope.launch {
-            FolderState.folder.collect { reload(it) }
+            FolderState.folder.collect { reload() }
+        }
+        viewModelScope.launch {
+            LibraryEvents.reload.collect {
+                reload()
+            }
         }
     }
 
     fun loadAll() {
-        reload(FolderState.current)
+        reload()
     }
 
-    private fun reload(folder: SelectedFolder?) {
+    suspend fun songsByAlbum(albumId: Long): List<Song> =
+        repository.loadSongsByAlbum(albumId)
+
+    private fun reload() {
         loadJob?.cancel()
         loadJob = viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
-            val loadedSongs = if (folder == null) emptyList() else repository.loadSongs()
+            val loadedSongs = repository.loadSongs()
             _songs.value = loadedSongs
             _albums.value = repository.loadAlbumsForSongs(loadedSongs)
             _artists.value = repository.loadArtistsForSongs(loadedSongs)
@@ -68,6 +76,11 @@ open class TrackListViewModel(
     init {
         viewModelScope.launch(Dispatchers.IO) {
             _tracks.value = loader(MediaRepository(getApplication()))
+        }
+        viewModelScope.launch {
+            LibraryEvents.reload.collect {
+                _tracks.value = loader(MediaRepository(getApplication()))
+            }
         }
     }
 }

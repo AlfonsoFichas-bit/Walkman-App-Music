@@ -104,10 +104,13 @@ class MediaRepository(private val context: Context) {
         var baseSelection = "(${MediaStore.Audio.Media.IS_MUSIC} != 0 OR ${MediaStore.Audio.Media.MIME_TYPE} LIKE 'audio/%')"
         var baseArgs = emptyArray<String>()
 
-        val folderPath = FolderState.absolutePath
-        if (folderPath != null) {
-            baseSelection += " AND (${MediaStore.Audio.Media.DATA} = ? OR ${MediaStore.Audio.Media.DATA} LIKE ?)"
-            baseArgs = arrayOf(folderPath, "$folderPath/%")
+        val folderPaths = FolderState.absolutePaths
+        if (folderPaths.isNotEmpty()) {
+            val pathFilter = folderPaths.joinToString(" OR ") {
+                "(${MediaStore.Audio.Media.DATA} = ? OR ${MediaStore.Audio.Media.DATA} LIKE ?)"
+            }
+            baseSelection += " AND ($pathFilter)"
+            baseArgs = folderPaths.flatMap { listOf(it, "$it/%") }.toTypedArray()
         }
 
         val finalSelection = selection?.let { "$it AND ($baseSelection)" } ?: baseSelection

@@ -32,6 +32,17 @@
     <string name="cd_queue">Abrir cola</string>
     <string name="play_all">Reproducir todo</string>
     <string name="shuffle">Aleatorio</string>
+    <string name="play_next">Siguiente</string>
+    <string name="add_to_queue">Añadir a la cola</string>
+    <string name="add_to_playlist">Añadir a lista de reproducción</string>
+    <string name="new_playlist">Nueva lista de reproducción</string>
+    <string name="create_playlist">Crear lista de reproducción</string>
+    <string name="playlist_name">Nombre de la lista</string>
+    <string name="cancel">Cancelar</string>
+    <string name="accept">Aceptar</string>
+    <string name="delete_song">Eliminar canción</string>
+    <string name="delete_song_message">"¿Eliminar \"%1$s\"? Se borrará definitivamente de tu dispositivo."</string>
+    <string name="delete_song_confirm">Eliminar</string>
     <string name="cd_playback_options">Opciones de reproducción</string>
     <string name="no_queue">La cola está vacía. Reproduce algo de tu biblioteca.</string>
     <string name="format_songs">%d canciones</string>
@@ -53,7 +64,9 @@
     <string name="settings_music_folder_desc">Reproducir solo las canciones de esta carpeta, incluyendo subcarpetas.</string>
     <string name="settings_all_music">Toda la música</string>
     <string name="settings_choose_folder">Elegir carpeta</string>
+    <string name="settings_add_folder">Añadir carpeta</string>
     <string name="settings_remove_folder">Quitar carpeta</string>
+    <string name="cd_remove_folder">Quitar carpeta</string>
     <string name="setup_title">Bienvenido a Walkman</string>
     <string name="setup_description">Elige la carpeta donde vive tu música. Walkman solo reproducirá las canciones de esa carpeta, incluyendo sus subcarpetas.</string>
     <string name="setup_hint">Puedes cambiarla más adelante en Ajustes.</string>
@@ -65,6 +78,8 @@
     <string name="widget_placeholder_title">Walkman</string>
     <string name="widget_cover_description">Portada del álbum en reproducción</string>
     <string name="widget_play">Reproducir</string>
+    <string name="widget_pause">Pausar</string>
+    <string name="widget_buffering">Cargando</string>
     <string name="widget_prev">Anterior</string>
     <string name="widget_next">Siguiente</string>
     <string name="widget_description">Widget mini reproductor que muestra la canción actual con controles de reproducción.</string>

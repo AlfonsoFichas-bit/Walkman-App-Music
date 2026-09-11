@@ -6,16 +6,16 @@ import kotlinx.coroutines.flow.asStateFlow
 
 object FolderState {
 
-    private val _folder = MutableStateFlow<SelectedFolder?>(null)
-    val folder: StateFlow<SelectedFolder?> = _folder.asStateFlow()
+    private val _folder = MutableStateFlow<List<SelectedFolder>>(emptyList())
+    val folder: StateFlow<List<SelectedFolder>> = _folder.asStateFlow()
 
-    val current: SelectedFolder?
+    val current: List<SelectedFolder>
         get() = _folder.value
 
-    val absolutePath: String?
-        get() = _folder.value?.absolutePath
+    val absolutePaths: List<String>
+        get() = _folder.value.mapNotNull { it.absolutePath }
 
-    fun set(folder: SelectedFolder?) {
-        _folder.value = folder
+    fun set(folders: List<SelectedFolder>) {
+        _folder.value = folders
     }
 }

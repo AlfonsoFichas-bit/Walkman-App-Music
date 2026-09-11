@@ -1,5 +1,6 @@
 package com.buga.walkman.data.db
 
+import com.buga.walkman.model.Playlist
 import com.buga.walkman.model.Song
 
 fun Song.toFavoriteEntity(addedAt: Long = System.currentTimeMillis()) = FavoriteSongEntity(
@@ -79,4 +80,27 @@ fun PlayHistoryEntity.toSong() = Song(
     duration = duration,
     trackNumber = trackNumber,
     uri = android.net.Uri.parse(uri)
+)
+
+fun PlaylistEntity.toPlaylist() = Playlist(
+    id = id,
+    name = name,
+    createdAt = createdAt
+)
+
+fun Song.toPlaylistSongEntity(
+    playlistId: Long,
+    addedAt: Long = System.currentTimeMillis()
+) = PlaylistSongEntity(
+    playlistId = playlistId,
+    songId = id,
+    title = title,
+    artist = artist,
+    album = album,
+    albumId = albumId,
+    artistId = artistId,
+    duration = duration,
+    trackNumber = trackNumber,
+    uri = uri.toString(),
+    addedAt = addedAt
 )

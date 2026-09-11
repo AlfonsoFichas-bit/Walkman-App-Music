@@ -16,8 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.buga.walkman.R
 import com.buga.walkman.model.Song
+import com.buga.walkman.ui.components.DeleteSongDialog
+import com.buga.walkman.ui.components.ExpressiveItemsMenu
+import com.buga.walkman.ui.components.ExpressiveMenuItem
 
 @Composable
 internal fun MusicPlayerHeader(
@@ -47,6 +48,7 @@ internal fun MusicPlayerHeader(
     currentSong: Song? = null,
     onOpenArtist: (Long) -> Unit = {},
     onOpenAlbum: (Long) -> Unit = {},
+    onDeleteSong: (Song) -> Unit = {},
     accentColor: Color = MaterialTheme.colorScheme.primary,
     showBranding: Boolean = true
 ) {
@@ -91,7 +93,8 @@ internal fun MusicPlayerHeader(
                         onDismiss = { menuExpanded = false },
                         currentSong = currentSong,
                         onOpenArtist = onOpenArtist,
-                        onOpenAlbum = onOpenAlbum
+                        onOpenAlbum = onOpenAlbum,
+                        onDeleteSong = onDeleteSong
                     )
                 }
             }
@@ -150,7 +153,8 @@ internal fun MusicPlayerHeader(
                     onDismiss = { menuExpanded = false },
                     currentSong = currentSong,
                     onOpenArtist = onOpenArtist,
-                    onOpenAlbum = onOpenAlbum
+                    onOpenAlbum = onOpenAlbum,
+                    onDeleteSong = onDeleteSong
                 )
             }
         }
@@ -178,8 +182,11 @@ private fun MoreMenuButton(
     onDismiss: () -> Unit,
     currentSong: Song?,
     onOpenArtist: (Long) -> Unit,
-    onOpenAlbum: (Long) -> Unit
+    onOpenAlbum: (Long) -> Unit,
+    onDeleteSong: (Song) -> Unit = {}
 ) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
     IconButton(onClick = onExpandToggle, modifier = Modifier.size(40.dp)) {
         Icon(
             imageVector = Icons.Default.MoreVert,
@@ -187,30 +194,47 @@ private fun MoreMenuButton(
             tint = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.size(22.dp)
         )
-        DropdownMenu(
+        ExpressiveItemsMenu(
             expanded = menuExpanded,
             onDismissRequest = onDismiss
         ) {
             currentSong?.let { song ->
-                if (song.artistId > 0) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.menu_artist)) },
-                        onClick = {
-                            onDismiss()
-                            onOpenArtist(song.artistId)
-                        }
-                    )
+                val items = buildList {
+                    if (song.artistId > 0) {
+                        add(stringResource(R.string.menu_artist) to { onOpenArtist(song.artistId) })
+                    }
+                    if (song.albumId > 0) {
+                        add(stringResource(R.string.menu_album) to { onOpenAlbum(song.albumId) })
+                    }
+                    add(stringResource(R.string.delete_song) to {
+                        showDeleteConfirm = true
+                    })
                 }
-                if (song.albumId > 0) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.menu_album)) },
+                items.forEachIndexed { index, (label, onClick) ->
+                    ExpressiveMenuItem(
                         onClick = {
                             onDismiss()
-                            onOpenAlbum(song.albumId)
-                        }
+                            onClick()
+                        },
+                        text = { Text(label) },
+                        index = index,
+                        count = items.size
                     )
                 }
             }
+        }
+    }
+
+    if (showDeleteConfirm) {
+        currentSong?.let { song ->
+            DeleteSongDialog(
+                song = song,
+                onDismiss = { showDeleteConfirm = false },
+                onConfirm = {
+                    showDeleteConfirm = false
+                    onDeleteSong(song)
+                }
+            )
         }
     }
 }

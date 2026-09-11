@@ -49,19 +49,46 @@ interface PlayHistoryDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: PlayHistoryEntity)
+
+    @Query("DELETE FROM play_history WHERE songId = :songId")
+    suspend fun remove(songId: Long)
 }
 
 @Dao
 interface FolderDao {
-    @Query("SELECT * FROM folders WHERE id = 1")
-    fun observeFolder(): Flow<SelectedFolder?>
+    @Query("SELECT * FROM folders ORDER BY rowid ASC")
+    fun observeFolders(): Flow<List<SelectedFolder>>
 
-    @Query("SELECT * FROM folders WHERE id = 1")
-    suspend fun getFolderSync(): SelectedFolder?
+    @Query("SELECT * FROM folders ORDER BY rowid ASC")
+    suspend fun getFoldersSync(): List<SelectedFolder>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun save(folder: SelectedFolder)
+    suspend fun add(folder: SelectedFolder)
 
-    @Query("DELETE FROM folders WHERE id = 1")
+    @Query("DELETE FROM folders WHERE treeUri = :treeUri")
+    suspend fun delete(treeUri: String)
+
+    @Query("DELETE FROM folders")
     suspend fun clear()
+}
+
+@Dao
+interface PlaylistDao {
+    @Query("SELECT * FROM playlists ORDER BY createdAt ASC")
+    fun observePlaylists(): Flow<List<PlaylistEntity>>
+
+    @Insert
+    suspend fun insert(playlist: PlaylistEntity): Long
+}
+
+@Dao
+interface PlaylistSongDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(entity: PlaylistSongEntity)
+
+    @Query("DELETE FROM playlist_songs WHERE playlistId = :playlistId AND songId = :songId")
+    suspend fun remove(playlistId: Long, songId: Long)
+
+    @Query("DELETE FROM playlist_songs WHERE songId = :songId")
+    suspend fun removeSong(songId: Long)
 }

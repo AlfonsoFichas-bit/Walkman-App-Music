@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -302,8 +303,7 @@ internal fun TransportIconButton(
     } else {
         Color.White.copy(alpha = 0.25f)
     }
-    IconButton(
-        onClick = onClick,
+    Box(
         modifier = Modifier
             .size(48.dp)
             .then(
@@ -322,7 +322,9 @@ internal fun TransportIconButton(
                     Modifier
                 }
             )
-            .padding(8.dp)
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = icon,

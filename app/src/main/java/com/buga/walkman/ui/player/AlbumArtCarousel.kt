@@ -12,19 +12,24 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.carousel.CarouselDefaults
 import androidx.compose.material3.carousel.HorizontalUncontainedCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
@@ -49,6 +54,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.buga.walkman.R
+import com.buga.walkman.model.Playlist
 import com.buga.walkman.model.Song
 import com.buga.walkman.ui.components.CoverImage
 import kotlinx.coroutines.delay
@@ -65,8 +71,12 @@ internal fun AlbumArtCarousel(
     currentIndex: Int,
     onSelectSong: (Int) -> Unit,
     favoriteIds: Set<Long> = emptySet(),
-    onToggleFavorite: (Song) -> Unit = {}
+    onToggleFavorite: (Song) -> Unit = {},
+    playlists: List<Playlist> = emptyList(),
+    onAddToPlaylist: (Song, Long) -> Unit = { _, _ -> },
+    onOpenArtist: (Long) -> Unit = {}
 ) {
+    var addToPlaylistSong by remember { mutableStateOf<Song?>(null) }
     val currentSelectSong by rememberUpdatedState(onSelectSong)
     val currentSongs by rememberUpdatedState(songs)
     val currentIndexState by rememberUpdatedState(currentIndex)
@@ -185,23 +195,23 @@ internal fun AlbumArtCarousel(
                                 )
                             }
                             IconButton(
-                                onClick = { },
+                                onClick = { song?.let { addToPlaylistSong = it } },
                                 modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Add,
-                                    contentDescription = null,
+                                    contentDescription = stringResource(R.string.add_to_playlist),
                                     tint = Color.White,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
                             IconButton(
-                                onClick = { },
+                                onClick = { song?.let { onOpenArtist(it.artistId) } },
                                 modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Person,
-                                    contentDescription = null,
+                                    contentDescription = stringResource(R.string.menu_artist),
                                     tint = Color.White,
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -212,6 +222,57 @@ internal fun AlbumArtCarousel(
             }
         }
     }
+
+    addToPlaylistSong?.let { song ->
+        AddToPlaylistDialog(
+            playlists = playlists,
+            onDismiss = { addToPlaylistSong = null },
+            onAdd = { playlistId ->
+                onAddToPlaylist(song, playlistId)
+                addToPlaylistSong = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun AddToPlaylistDialog(
+    playlists: List<Playlist>,
+    onDismiss: () -> Unit,
+    onAdd: (Long) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.add_to_playlist)) },
+        text = {
+            if (playlists.isEmpty()) {
+                Text(stringResource(R.string.no_playlists))
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(260.dp)
+                ) {
+                    items(playlists, key = { it.id }) { playlist ->
+                        Text(
+                            text = playlist.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onAdd(playlist.id) }
+                                .padding(vertical = 12.dp, horizontal = 4.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 @Composable

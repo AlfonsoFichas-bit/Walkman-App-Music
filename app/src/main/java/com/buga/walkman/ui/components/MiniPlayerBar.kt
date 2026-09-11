@@ -31,7 +31,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -49,7 +51,8 @@ fun MiniPlayerBar(
     onClick: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    darkOverlay: Color = Color(0xCC000000)
 ) {
     val song = state.currentSong ?: return
     val progress = if (state.durationMs > 0) {
@@ -57,6 +60,8 @@ fun MiniPlayerBar(
     } else 0f
 
     val accent by animateColorAsState(state.accentHighlight, label = "miniPlayerAccent")
+    val containerColor = compositeOver(darkOverlay, accent)
+    val onContainer = if (containerColor.luminance() > 0.5f) Color.Black else Color.White
     val density = LocalDensity.current
     val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
     val offsetX = remember { Animatable(0f) }
@@ -65,8 +70,9 @@ fun MiniPlayerBar(
     Box(modifier = modifier.fillMaxWidth()) {
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            tonalElevation = 2.dp,
+            color = containerColor,
+            contentColor = onContainer,
+            tonalElevation = 0.dp,
             shadowElevation = 6.dp,
             modifier = Modifier
                 .fillMaxWidth()
@@ -129,14 +135,14 @@ fun MiniPlayerBar(
                         Text(
                             text = song.title,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = onContainer,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = song.artist,
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = onContainer.copy(alpha = 0.7f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )

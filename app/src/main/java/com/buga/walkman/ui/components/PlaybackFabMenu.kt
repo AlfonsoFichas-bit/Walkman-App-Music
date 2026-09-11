@@ -1,6 +1,7 @@
 package com.buga.walkman.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -50,7 +51,12 @@ fun PlaybackFabMenu(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val onAccent = if (accent.luminance() > 0.5f) Color.Black else Color.White
+    val animatedAccent by animateColorAsState(
+        targetValue = accent,
+        animationSpec = tween(durationMillis = 500),
+        label = "fabAccent"
+    )
+    val onAccent = if (animatedAccent.luminance() > 0.5f) Color.Black else Color.White
 
     Column(
         modifier = modifier,
@@ -61,7 +67,8 @@ fun PlaybackFabMenu(
                 expanded = expanded,
                 icon = Icons.Default.Shuffle,
                 label = stringResource(R.string.shuffle),
-                accent = accent,
+                accent = animatedAccent,
+                onAccent = onAccent,
                 delayMillis = 120,
                 onClick = {
                     expanded = false
@@ -73,7 +80,8 @@ fun PlaybackFabMenu(
             expanded = expanded,
             icon = Icons.Default.PlayArrow,
             label = stringResource(R.string.play_all),
-            accent = accent,
+            accent = animatedAccent,
+            onAccent = onAccent,
             delayMillis = 0,
             onClick = {
                 expanded = false
@@ -84,7 +92,7 @@ fun PlaybackFabMenu(
         FloatingActionButton(
             onClick = { if (enabled) expanded = !expanded },
             modifier = Modifier.alpha(if (enabled) 1f else 0.5f),
-            containerColor = accent,
+            containerColor = animatedAccent,
             contentColor = onAccent
         ) {
             Icon(
@@ -101,6 +109,7 @@ fun ExpressiveFabMenuItem(
     icon: ImageVector,
     label: String,
     accent: Color,
+    onAccent: Color,
     delayMillis: Int,
     onClick: () -> Unit
 ) {
@@ -119,8 +128,8 @@ fun ExpressiveFabMenuItem(
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = accent.copy(alpha = 0.16f),
-            contentColor = accent,
+            color = accent,
+            contentColor = onAccent,
             shadowElevation = 3.dp,
             modifier = Modifier
                 .padding(start = 16.dp, bottom = 8.dp)

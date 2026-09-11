@@ -32,10 +32,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.buga.walkman.R
 import com.buga.walkman.model.Album
+import com.buga.walkman.model.Song
 import com.buga.walkman.ui.components.AlbumGridCell
 import com.buga.walkman.ui.components.ArtistPlaceholder
 import com.buga.walkman.ui.components.CoverImage
+import com.buga.walkman.ui.components.DeleteSongDialog
 import com.buga.walkman.ui.components.expressiveArtistColor
+import com.buga.walkman.ui.components.rememberSongDeleter
 import com.buga.walkman.viewmodel.LibraryViewModel
 import com.buga.walkman.viewmodel.PlayerControllerViewModel
 import com.buga.walkman.viewmodel.TrackListViewModel
@@ -79,6 +82,8 @@ fun ArtistDetailScreen(
     var showAlbums by rememberSaveable { mutableStateOf(false) }
     val tabTracks = stringResource(R.string.tab_songs)
     val tabAlbums = stringResource(R.string.tab_albums)
+    var confirmDeleteSong by remember { mutableStateOf<Song?>(null) }
+    val requestDelete = rememberSongDeleter(playerViewModel)
 
     TrackDetailContent(
         title = title,
@@ -88,7 +93,10 @@ fun ArtistDetailScreen(
         tracks = tracks,
         onBack = onBack,
         onPlayAt = { index -> playerViewModel.playSongs(tracks, index) },
-        onShuffle = { playerViewModel.playSongs(tracks.shuffled(), 0) },
+        onShuffle = { playerViewModel.playShuffled(tracks) },
+        onPlayNextItem = { song -> playerViewModel.playSongsNext(listOf(song)) },
+        onAddToQueueItem = { song -> playerViewModel.addSongsToQueue(listOf(song)) },
+        onDeleteItem = { song -> confirmDeleteSong = song },
         accent = playerState.accentHighlight,
         tabs = listOf(tabTracks, tabAlbums),
         selectedTab = if (showAlbums) 1 else 0,
@@ -105,6 +113,12 @@ fun ArtistDetailScreen(
                             AlbumGridCell(
                                 album = album,
                                 onClick = { onOpenAlbum(album.id) },
+                                onPlayNext = {
+                                    playerViewModel.playSongsNext(tracks.filter { it.albumId == album.id })
+                                },
+                                onAddToQueue = {
+                                    playerViewModel.addSongsToQueue(tracks.filter { it.albumId == album.id })
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(4.dp)
@@ -167,4 +181,15 @@ fun ArtistDetailScreen(
             }
         }
     )
+
+    confirmDeleteSong?.let { song ->
+        DeleteSongDialog(
+            song = song,
+            onDismiss = { confirmDeleteSong = null },
+            onConfirm = {
+                confirmDeleteSong = null
+                requestDelete(song)
+            }
+        )
+    }
 }

@@ -6,8 +6,8 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.filled.SpaceDashboard
+import androidx.compose.material.icons.outlined.SpaceDashboard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
@@ -60,7 +60,7 @@ internal fun WalkmanNavigationRail(
             NavigationRailItem(
                 icon = {
                     Icon(
-                        if (isHomeRoute) Icons.Filled.Home else Icons.Outlined.Home,
+                        if (isHomeRoute) Icons.Filled.SpaceDashboard else Icons.Outlined.SpaceDashboard,
                         contentDescription = stringResource(R.string.screen_home)
                     )
                 },

@@ -15,10 +15,12 @@ import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.buga.walkman.data.LibraryEvents
 import com.buga.walkman.data.PlayerPersistence
 import com.buga.walkman.data.db.AppDatabase
 import com.buga.walkman.data.media.ArtworkColorExtractor
 import com.buga.walkman.model.EXTRA_DURATION_MS
+import com.buga.walkman.model.Playlist
 import com.buga.walkman.model.Song
 import com.buga.walkman.model.toMediaItem
 import com.buga.walkman.model.toSong
@@ -27,6 +29,7 @@ import com.buga.walkman.ui.theme.WalkmanAccentHighlight
 import com.buga.walkman.ui.theme.WalkmanGradientBottom
 import com.buga.walkman.ui.theme.WalkmanGradientTop
 import com.google.common.util.concurrent.ListenableFuture
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -71,9 +74,14 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
     private val _topSongs = MutableStateFlow<List<Song>>(emptyList())
     val topSongs: StateFlow<List<Song>> = _topSongs.asStateFlow()
 
+    private val _playlists = MutableStateFlow<List<Playlist>>(emptyList())
+    val playlists: StateFlow<List<Playlist>> = _playlists.asStateFlow()
+
     private val _controller = MutableStateFlow<MediaController?>(null)
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var restorePending = false
+    private var originalQueue: List<Song> = emptyList()
+    private var shuffleActive = false
 
     private val listener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -92,11 +100,6 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
         override fun onTimelineChanged(timeline: Timeline, reason: Int) {
             refreshQueue()
             refreshCurrent()
-        }
-
-        override fun onShuffleModeEnabledChanged(enabled: Boolean) {
-            _state.update { it.copy(shuffleEnabled = enabled) }
-            viewModelScope.launch { persistence.saveShuffleEnabled(enabled) }
         }
 
         override fun onRepeatModeChanged(repeatMode: Int) {
@@ -125,6 +128,7 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
                         val duration = controller.duration
                             .takeIf { it != C.TIME_UNSET && it > 0 } ?: 0L
                         _state.update { it.copy(positionMs = position, durationMs = duration) }
+                        persistence.savePosition(controller.currentMediaItemIndex, position)
                     }
                 }
                 delay(500)
@@ -147,6 +151,11 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
         viewModelScope.launch {
             persistence.observeTopPlayed().collect { list ->
                 _topSongs.value = list
+            }
+        }
+        viewModelScope.launch {
+            persistence.observePlaylists().collect { list ->
+                _playlists.value = list
             }
         }
     }
@@ -215,19 +224,16 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
             it.copy(queue = items)
         }
         refreshCurrent(player)
+        val toSave = originalQueue
         viewModelScope.launch {
             if (items.isEmpty() && restorePending) return@launch
-            persistence.saveQueue(items)
+            persistence.saveQueue(toSave)
         }
     }
 
     private fun restoreShuffle(controller: MediaController) {
-        val saved = persistence.loadShuffleEnabled()
-        if (controller.shuffleModeEnabled != saved) {
-            controller.shuffleModeEnabled = saved
-        } else {
-            _state.update { it.copy(shuffleEnabled = controller.shuffleModeEnabled) }
-        }
+        shuffleActive = persistence.loadShuffleEnabled()
+        _state.update { it.copy(shuffleEnabled = shuffleActive) }
     }
 
     private fun restoreQueueIfNeeded(controller: MediaController) {
@@ -239,7 +245,23 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
             val items = persistence.loadQueue()
             restorePending = false
             if (items.isNotEmpty() && controller.mediaItemCount == 0) {
-                controller.setMediaItems(items.map { it.toMediaItem() }, 0, 0L)
+                originalQueue = items.toList()
+                val saved = persistence.loadPosition()
+                val display: List<Song>
+                val startIndex: Int
+                val startPosition: Long
+                if (shuffleActive) {
+                    val anchor = items.getOrNull(saved.index.coerceIn(0, items.lastIndex))
+                        ?: items.firstOrNull()
+                    display = anchor?.let { anchoredShuffle(items, it) } ?: items.shuffled()
+                    startIndex = 0
+                    startPosition = 0L
+                } else {
+                    display = items
+                    startIndex = saved.index.coerceIn(0, items.lastIndex)
+                    startPosition = saved.positionMs
+                }
+                controller.setMediaItems(display.map { it.toMediaItem() }, startIndex, startPosition)
                 controller.prepare()
             }
         }
@@ -251,9 +273,30 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
         }
     }
 
-    fun playSongs(songs: List<Song>, startIndex: Int = 0) {
+    fun playSongs(songs: List<Song>, startIndex: Int = 0, shuffle: Boolean = false) {
         val controller = _controller.value ?: return
-        controller.setMediaItems(songs.map { it.toMediaItem() }, startIndex, 0L)
+        originalQueue = songs.toList()
+        val display: List<Song>
+        val start: Int
+        if (shuffle) {
+            val anchor = songs.getOrNull(startIndex)
+            display = anchor?.let { anchoredShuffle(songs, it) } ?: songs.shuffled()
+            start = 0
+        } else {
+            display = songs
+            start = startIndex
+        }
+        rebuildQueue(controller, display, start, shuffle)
+        controller.prepare()
+        controller.play()
+    }
+
+    fun playShuffled(songs: List<Song>) {
+        if (songs.isEmpty()) return
+        val controller = _controller.value ?: return
+        originalQueue = songs.toList()
+        val anchor = songs.random()
+        rebuildQueue(controller, anchoredShuffle(songs, anchor), 0, true)
         controller.prepare()
         controller.play()
     }
@@ -280,8 +323,55 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
 
     fun toggleShuffle() {
         val controller = _controller.value ?: return
-        controller.shuffleModeEnabled = !controller.shuffleModeEnabled
+        if (shuffleActive) {
+            disableShuffle(controller)
+        } else {
+            enableShuffle(controller)
+        }
     }
+
+    private fun enableShuffle(controller: Player) {
+        val anchor = currentSong(controller)
+        val display = anchor?.let { anchoredShuffle(originalQueue, it) }
+            ?: if (originalQueue.isEmpty()) emptyList() else originalQueue.shuffled()
+        rebuildQueue(controller, display, 0, true, controller.currentPosition)
+    }
+
+    private fun disableShuffle(controller: Player) {
+        val anchor = currentSong(controller)
+        val index = originalQueue.indexOfFirst { it.id == anchor?.id }
+        rebuildQueue(controller, originalQueue, index.coerceAtLeast(0), false, controller.currentPosition)
+    }
+
+    private fun rebuildQueue(
+        controller: Player,
+        display: List<Song>,
+        startIndex: Int,
+        shuffle: Boolean,
+        startPositionMs: Long = 0L
+    ) {
+        controller.shuffleModeEnabled = false
+        controller.setMediaItems(display.map { it.toMediaItem() }, startIndex, startPositionMs)
+        shuffleActive = shuffle
+        _state.update {
+            it.copy(
+                queue = display,
+                shuffleEnabled = shuffle,
+                currentIndex = startIndex
+            )
+        }
+        viewModelScope.launch { persistence.saveShuffleEnabled(shuffle) }
+        persistence.savePosition(startIndex, startPositionMs)
+    }
+
+    private fun anchoredShuffle(songs: List<Song>, anchor: Song): List<Song> {
+        if (songs.isEmpty()) return songs
+        val index = songs.indexOfFirst { it.id == anchor.id }
+        if (index < 0) return songs.shuffled()
+        return listOf(anchor) + songs.filterIndexed { i, _ -> i != index }.shuffled()
+    }
+
+    private fun currentSong(controller: Player): Song? = controller.currentMediaItem?.toSong()
 
     fun cycleRepeatMode() {
         val controller = _controller.value ?: return
@@ -304,11 +394,91 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
         _controller.value?.removeMediaItem(index)
     }
 
+    fun addSongsToQueue(songs: List<Song>) {
+        val controller = _controller.value ?: return
+        if (songs.isEmpty()) return
+        if (controller.mediaItemCount == 0) {
+            startFromEmptyQueue(songs)
+            return
+        }
+        originalQueue = originalQueue + songs
+        controller.addMediaItems(songs.map { it.toMediaItem() })
+    }
+
+    fun playSongsNext(songs: List<Song>) {
+        val controller = _controller.value ?: return
+        if (songs.isEmpty()) return
+        if (controller.mediaItemCount == 0) {
+            startFromEmptyQueue(songs)
+            return
+        }
+        val currentId = controller.currentMediaItem?.toSong()?.id
+        val logicalIndex = originalQueue.indexOfFirst { it.id == currentId }
+        val insertAt = if (logicalIndex >= 0) logicalIndex + 1 else originalQueue.size
+        originalQueue = originalQueue.take(insertAt) + songs + originalQueue.drop(insertAt)
+        controller.addMediaItems(controller.currentMediaItemIndex + 1, songs.map { it.toMediaItem() })
+    }
+
+    private fun startFromEmptyQueue(songs: List<Song>) {
+        playSongs(songs, 0, shuffleActive)
+    }
+
     fun toggleFavorite(song: Song) {
         val favorite = !_favorites.value.contains(song.id)
         viewModelScope.launch {
             persistence.setFavorite(song, favorite)
         }
+    }
+
+    fun createPlaylist(name: String) {
+        val playlistName = name.trim()
+        if (playlistName.isEmpty()) return
+        viewModelScope.launch {
+            persistence.createPlaylist(playlistName)
+        }
+    }
+
+    fun addSongToPlaylist(playlistId: Long, song: Song) {
+        viewModelScope.launch {
+            persistence.addSongToPlaylist(playlistId, song)
+        }
+    }
+
+    fun deleteSong(song: Song) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val application = getApplication<Application>()
+            try {
+                val deleted = application.contentResolver.delete(song.uri, null, null)
+                if (deleted > 0) {
+                    application.contentResolver.notifyChange(song.uri, null)
+                }
+            } catch (_: Exception) {
+            } finally {
+                cleanupDeletedSong(song)
+            }
+        }
+    }
+
+    fun onSongDeleted(song: Song) {
+        viewModelScope.launch {
+            cleanupDeletedSong(song)
+        }
+    }
+
+    private suspend fun cleanupDeletedSong(song: Song) {
+        _controller.value?.takeIf { it.mediaItemCount > 0 }?.let { player ->
+            val index = (0 until player.mediaItemCount).firstOrNull {
+                player.getMediaItemAt(it).mediaId == song.id.toString()
+            }
+            if (index != null) {
+                player.removeMediaItem(index)
+            }
+        }
+        originalQueue = originalQueue.filterNot { it.id == song.id }
+        persistence.setFavorite(song, false)
+        persistence.removeFromHistory(song.id)
+        persistence.removeSongFromPlaylists(song.id)
+        LibraryEvents.requestLibraryReload()
     }
 
     override fun onCleared() {

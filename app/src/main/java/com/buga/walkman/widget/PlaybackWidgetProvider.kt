@@ -11,6 +11,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.os.Build
 import android.os.Bundle
 import android.util.TypedValue
+import android.view.View
 import android.widget.RemoteViews
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
@@ -137,16 +138,16 @@ class PlaybackWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widget_artist, "")
             views.setImageViewResource(R.id.widget_cover, R.drawable.widget_note_placeholder)
             views.setImageViewResource(R.id.widget_play_pause, R.drawable.widget_icon_play)
+            views.setBoolean(R.id.widget_play_pause, "setEnabled", true)
+            views.setContentDescription(R.id.widget_play_pause, context.getString(R.string.widget_play))
+            views.setViewVisibility(R.id.widget_loading_spinner, View.GONE)
+            views.setViewVisibility(R.id.widget_play_pause, View.VISIBLE)
             views.setProgressBar(R.id.widget_progress, 1000, 0, false)
             return views
         }
 
         views.setTextViewText(R.id.widget_title, song.title)
         views.setTextViewText(R.id.widget_artist, song.artist)
-        views.setImageViewResource(
-            R.id.widget_play_pause,
-            if (controller.isPlaying) R.drawable.widget_icon_pause else R.drawable.widget_icon_play
-        )
         views.setImageViewResource(R.id.widget_cover, R.drawable.widget_note_placeholder)
         loadArtwork(context, views, song)
 
@@ -158,7 +159,34 @@ class PlaybackWidgetProvider : AppWidgetProvider() {
             controller.currentPosition.coerceIn(0L, duration).toInt()
         }
         views.setProgressBar(R.id.widget_progress, max, progress, false)
+        applyPlayState(context, views, controller)
         return views
+    }
+
+    private fun applyPlayState(context: Context, views: RemoteViews, controller: Player) {
+        val buffering = controller.playbackState == Player.STATE_BUFFERING
+        views.setContentDescription(
+            R.id.widget_loading_spinner,
+            context.getString(R.string.widget_buffering)
+        )
+        if (buffering) {
+            views.setViewVisibility(R.id.widget_loading_spinner, View.VISIBLE)
+            views.setViewVisibility(R.id.widget_play_pause, View.INVISIBLE)
+            views.setBoolean(R.id.widget_play_pause, "setEnabled", false)
+        } else {
+            val playing = controller.isPlaying
+            views.setViewVisibility(R.id.widget_loading_spinner, View.GONE)
+            views.setViewVisibility(R.id.widget_play_pause, View.VISIBLE)
+            views.setBoolean(R.id.widget_play_pause, "setEnabled", true)
+            views.setImageViewResource(
+                R.id.widget_play_pause,
+                if (playing) R.drawable.widget_icon_pause else R.drawable.widget_icon_play
+            )
+            views.setContentDescription(
+                R.id.widget_play_pause,
+                context.getString(if (playing) R.string.widget_pause else R.string.widget_play)
+            )
+        }
     }
 
     private fun coverSideDp(
@@ -196,6 +224,12 @@ class PlaybackWidgetProvider : AppWidgetProvider() {
                 "setProgressTintList",
                 ColorStateList.valueOf(colors.highlight.toArgb())
             )
+            views.setColorStateList(
+                R.id.widget_loading_spinner,
+                "setIndeterminateTintList",
+                ColorStateList.valueOf(colors.highlight.toArgb())
+            )
+            applyPlayState(context, views, controller)
             val appWidgetManager = AppWidgetManager.getInstance(context)
             val ids = appWidgetManager.getAppWidgetIds(
                 ComponentName(context, PlaybackWidgetProvider::class.java)
@@ -345,6 +379,7 @@ class PlaybackWidgetProvider : AppWidgetProvider() {
     private fun openAppPendingIntent(context: Context): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(MainActivity.EXTRA_OPEN_PLAYER, true)
         }
         return PendingIntent.getActivity(
             context,
@@ -373,8 +408,8 @@ class PlaybackWidgetProvider : AppWidgetProvider() {
         private const val REQUEST_NEXT = 2
         private const val REQUEST_PREVIOUS = 3
 
-        private const val COVER_TOP_MARGIN_DP = 0
-        private const val COVER_BOTTOM_MARGIN_DP = 0
+        private const val COVER_TOP_MARGIN_DP = 10
+        private const val COVER_BOTTOM_MARGIN_DP = 10
         private const val PROGRESS_HEIGHT_DP = 3
         private const val DEFAULT_COVER_DP = 48
         private const val BACKGROUND_BLACK_FILTER = 0.78f

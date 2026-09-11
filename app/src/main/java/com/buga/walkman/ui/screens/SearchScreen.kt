@@ -32,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,6 +50,7 @@ import com.buga.walkman.ui.components.EmptyState
 import com.buga.walkman.ui.components.SongListItem
 import com.buga.walkman.viewmodel.LibraryViewModel
 import com.buga.walkman.viewmodel.PlayerControllerViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,6 +65,7 @@ fun SearchScreen(
     val playerState by playerViewModel.state.collectAsState()
     var query by rememberSaveable { mutableStateOf("") }
     var showAllSongs by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(query) {
         showAllSongs = false
@@ -146,7 +149,9 @@ fun SearchScreen(
                                     song = song,
                                     isCurrentAndPlaying = playerState.currentSong?.id == song.id &&
                                         playerState.isPlaying,
-                                    onClick = { playerViewModel.playSongs(visibleSongs, index) }
+                                    onClick = { playerViewModel.playSongs(visibleSongs, index) },
+                                    onPlayNext = { playerViewModel.playSongsNext(listOf(song)) },
+                                    onAddToQueue = { playerViewModel.addSongsToQueue(listOf(song)) }
                                 )
                             }
                             if (filteredSongs.size > 5) {
@@ -174,7 +179,20 @@ fun SearchScreen(
                             item(key = "albums_header") {
                                 SectionHeader(stringResource(R.string.tab_albums))
                             }
-                            albumGrid(filteredAlbums, onOpenAlbum)
+                            albumGrid(
+                                filteredAlbums,
+                                onOpenAlbum,
+                                onPlayNext = { album ->
+                                    scope.launch {
+                                        playerViewModel.playSongsNext(libraryViewModel.songsByAlbum(album.id))
+                                    }
+                                },
+                                onAddToQueue = { album ->
+                                    scope.launch {
+                                        playerViewModel.addSongsToQueue(libraryViewModel.songsByAlbum(album.id))
+                                    }
+                                }
+                            )
                         }
                     }
                 }
@@ -212,7 +230,9 @@ private fun ShowMoreButton(text: String, accent: Color, onClick: () -> Unit) {
 
 private fun LazyListScope.albumGrid(
     albums: List<Album>,
-    onOpenAlbum: (Long) -> Unit
+    onOpenAlbum: (Long) -> Unit,
+    onPlayNext: (Album) -> Unit,
+    onAddToQueue: (Album) -> Unit
 ) {
     albums.chunked(2).forEach { rowAlbums ->
         item(key = "album-row-${rowAlbums.joinToString("-") { it.id.toString() }}") {
@@ -225,6 +245,8 @@ private fun LazyListScope.albumGrid(
                     AlbumGridCell(
                         album = album,
                         onClick = { onOpenAlbum(album.id) },
+                        onPlayNext = { onPlayNext(album) },
+                        onAddToQueue = { onAddToQueue(album) },
                         modifier = Modifier
                             .weight(1f)
                             .padding(4.dp)

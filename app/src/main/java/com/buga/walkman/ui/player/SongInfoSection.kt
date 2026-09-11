@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.buga.walkman.R
+import com.buga.walkman.model.Playlist
 import com.buga.walkman.model.Song
 
 @Composable
@@ -43,7 +44,10 @@ internal fun SongInfoSection(
     isScrubbing: Boolean = false,
     scrubbingTimeMs: Long = 0L,
     favoriteIds: Set<Long> = emptySet(),
-    onToggleFavorite: (Song) -> Unit = {}
+    onToggleFavorite: (Song) -> Unit = {},
+    playlists: List<Playlist> = emptyList(),
+    onAddToPlaylist: (Song, Long) -> Unit = { _, _ -> },
+    onOpenArtist: (Long) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -67,7 +71,10 @@ if (queue.isEmpty()) {
                 currentIndex = currentIndex,
                 onSelectSong = onSelectSong,
                 favoriteIds = favoriteIds,
-                onToggleFavorite = onToggleFavorite
+                onToggleFavorite = onToggleFavorite,
+                playlists = playlists,
+                onAddToPlaylist = onAddToPlaylist,
+                onOpenArtist = onOpenArtist
             )
         }
     }

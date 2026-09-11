@@ -2,10 +2,14 @@ package com.buga.walkman.data
 
 import android.content.Context
 import com.buga.walkman.data.db.AppDatabase
+import com.buga.walkman.data.db.PlaylistEntity
 import com.buga.walkman.data.db.toFavoriteEntity
 import com.buga.walkman.data.db.toPlayHistoryEntity
+import com.buga.walkman.data.db.toPlaylist
+import com.buga.walkman.data.db.toPlaylistSongEntity
 import com.buga.walkman.data.db.toQueueItemEntity
 import com.buga.walkman.data.db.toSong
+import com.buga.walkman.model.Playlist
 import com.buga.walkman.model.Song
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -23,6 +27,21 @@ class PlayerPersistence(private val context: Context, private val database: AppD
     fun observeTopPlayed(): Flow<List<Song>> =
         database.playHistoryDao().observeMostPlayed(limit = 5).map { list -> list.map { it.toSong() } }
 
+    fun observePlaylists(): Flow<List<Playlist>> =
+        database.playlistDao().observePlaylists().map { list -> list.map { it.toPlaylist() } }
+
+    suspend fun createPlaylist(name: String) {
+        database.playlistDao().insert(PlaylistEntity(name = name))
+    }
+
+    suspend fun addSongToPlaylist(playlistId: Long, song: Song) {
+        database.playlistSongDao().insert(song.toPlaylistSongEntity(playlistId))
+    }
+
+    suspend fun removeSongFromPlaylists(songId: Long) {
+        database.playlistSongDao().removeSong(songId)
+    }
+
     suspend fun saveQueue(items: List<Song>) {
         val dao = database.queueDao()
         dao.clear()
@@ -33,6 +52,18 @@ class PlayerPersistence(private val context: Context, private val database: AppD
 
     suspend fun loadQueue(): List<Song> =
         database.queueDao().loadQueue().map { it.toSong() }
+
+    fun savePosition(index: Int, positionMs: Long) {
+        prefs.edit()
+            .putInt(KEY_INDEX, index)
+            .putLong(KEY_POSITION, positionMs)
+            .apply()
+    }
+
+    fun loadPosition(): SavedPlaybackState = SavedPlaybackState(
+        index = prefs.getInt(KEY_INDEX, 0),
+        positionMs = prefs.getLong(KEY_POSITION, 0L)
+    )
 
     fun saveShuffleEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SHUFFLE, enabled).apply()
@@ -60,7 +91,18 @@ class PlayerPersistence(private val context: Context, private val database: AppD
         )
     }
 
+    suspend fun removeFromHistory(songId: Long) {
+        database.playHistoryDao().remove(songId)
+    }
+
     companion object {
         private const val KEY_SHUFFLE = "shuffle_enabled"
+        private const val KEY_INDEX = "queue_index"
+        private const val KEY_POSITION = "queue_position"
     }
 }
+
+data class SavedPlaybackState(
+    val index: Int = 0,
+    val positionMs: Long = 0L
+)
