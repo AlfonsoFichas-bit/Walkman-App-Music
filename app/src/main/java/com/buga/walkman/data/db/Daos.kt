@@ -19,6 +19,9 @@ interface FavoriteDao {
 
     @Query("DELETE FROM favorites WHERE songId = :songId")
     suspend fun remove(songId: Long)
+
+    @Query("UPDATE favorites SET title = :title, artist = :artist, album = :album WHERE songId = :songId")
+    suspend fun updateMetadata(songId: Long, title: String, artist: String, album: String)
 }
 
 @Dao
@@ -34,6 +37,9 @@ interface QueueDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(items: List<QueueItemEntity>)
+
+    @Query("UPDATE queue SET title = :title, artist = :artist, album = :album WHERE songId = :songId")
+    suspend fun updateMetadata(songId: Long, title: String, artist: String, album: String)
 }
 
 @Dao
@@ -52,6 +58,9 @@ interface PlayHistoryDao {
 
     @Query("DELETE FROM play_history WHERE songId = :songId")
     suspend fun remove(songId: Long)
+
+    @Query("UPDATE play_history SET title = :title, artist = :artist, album = :album WHERE songId = :songId")
+    suspend fun updateMetadata(songId: Long, title: String, artist: String, album: String)
 }
 
 @Dao
@@ -91,4 +100,7 @@ interface PlaylistSongDao {
 
     @Query("DELETE FROM playlist_songs WHERE songId = :songId")
     suspend fun removeSong(songId: Long)
+
+    @Query("UPDATE playlist_songs SET title = :title, artist = :artist, album = :album WHERE songId = :songId")
+    suspend fun updateMetadata(songId: Long, title: String, artist: String, album: String)
 }

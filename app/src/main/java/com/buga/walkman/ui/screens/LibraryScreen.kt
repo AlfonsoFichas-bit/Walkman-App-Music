@@ -103,6 +103,7 @@ fun LibraryScreen(
     val albums by libraryViewModel.albums.collectAsState()
     val artists by libraryViewModel.artists.collectAsState()
     val favoriteSongs by playerViewModel.favoriteSongs.collectAsState()
+    val favoriteIds by playerViewModel.favorites.collectAsState()
     val playlists by playerViewModel.playlists.collectAsState()
     val playerState by playerViewModel.state.collectAsState()
 
@@ -164,10 +165,12 @@ fun LibraryScreen(
                 0 -> SongsTab(
                     songs = songs,
                     playerState = playerState,
+                    favoriteIds = favoriteIds,
                     onPlaySong = { index -> playerViewModel.playSongs(songs, index) },
                     onPlayNext = { song -> playerViewModel.playSongsNext(listOf(song)) },
                     onAddToQueue = { song -> playerViewModel.addSongsToQueue(listOf(song)) },
-                    onDelete = { song -> confirmDeleteSong = song }
+                    onDelete = { song -> confirmDeleteSong = song },
+                    onToggleFavorite = { song -> playerViewModel.toggleFavorite(song) }
                 )
                 1 -> AlbumsTab(
                     albums = albums,
@@ -210,10 +213,12 @@ fun LibraryScreen(
 private fun SongsTab(
     songs: List<Song>,
     playerState: PlayerUiState,
+    favoriteIds: Set<Long>,
     onPlaySong: (Int) -> Unit,
     onPlayNext: (Song) -> Unit,
     onAddToQueue: (Song) -> Unit,
-    onDelete: (Song) -> Unit
+    onDelete: (Song) -> Unit,
+    onToggleFavorite: (Song) -> Unit
 ) {
     if (songs.isEmpty()) {
         EmptyState(stringResource(R.string.no_songs_found))
@@ -228,7 +233,9 @@ private fun SongsTab(
                 onClick = { onPlaySong(index) },
                 onPlayNext = { onPlayNext(song) },
                 onAddToQueue = { onAddToQueue(song) },
-                onDelete = { onDelete(song) }
+                onDelete = { onDelete(song) },
+                isFavorite = song.id in favoriteIds,
+                onToggleFavorite = { onToggleFavorite(song) }
             )
         }
     }

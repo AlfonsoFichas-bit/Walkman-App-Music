@@ -3,9 +3,10 @@ package com.buga.walkman.model
 import android.content.ContentUris
 import android.net.Uri
 import android.os.Bundle
+import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
-import androidx.core.net.toUri
+import com.buga.walkman.data.CoverStore
 
 data class Song(
     val id: Long,
@@ -16,13 +17,18 @@ data class Song(
     val artistId: Long = 0L,
     val duration: Int = 0,
     val trackNumber: Int = 0,
-    val uri: Uri = Uri.EMPTY
+    val uri: Uri = Uri.EMPTY,
+    val mimeType: String? = null,
+    val dataPath: String? = null
 ) {
+    /**
+     * Resolves through [CoverStore], which holds only the application context. Previously this was a
+     * top-level `var` assigned by `MainActivity`, which retained the whole Activity for the lifetime
+     * of the process and left the widget unable to resolve custom covers before the app was opened.
+     */
     val albumArtUri: Uri
-        get() = ContentUris.withAppendedId(
-            "content://media/external/audio/albumart".toUri(),
-            albumId
-        )
+        get() = CoverStore.uriFor(id)
+            ?: ContentUris.withAppendedId(ALBUM_ART_BASE, albumId)
 
     fun formatDuration(): String {
         val minutes = duration / 1000 / 60
@@ -39,10 +45,7 @@ data class Album(
     val year: Int
 ) {
     val albumArtUri: Uri
-        get() = ContentUris.withAppendedId(
-            "content://media/external/audio/albumart".toUri(),
-            id
-        )
+        get() = ContentUris.withAppendedId(ALBUM_ART_BASE, id)
 }
 
 data class Artist(
@@ -63,6 +66,13 @@ const val EXTRA_ALBUM_ID = "walkman.album_id"
 const val EXTRA_ARTIST_ID = "walkman.artist_id"
 const val EXTRA_DURATION_MS = "walkman.duration_ms"
 const val EXTRA_TRACK_NUMBER = "walkman.track_number"
+
+/**
+ * MediaStore stopped serving artwork from this provider in API 29. It stays as the last-resort
+ * fallback for API 27-28; on API 29+ callers should use `ContentResolver.loadThumbnail` with the
+ * track's own content URI, which is what the widget does.
+ */
+private val ALBUM_ART_BASE = "content://media/external/audio/albumart".toUri()
 
 fun Song.toMediaItem(): MediaItem = MediaItem.Builder()
     .setMediaId(id.toString())

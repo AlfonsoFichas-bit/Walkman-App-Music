@@ -72,7 +72,9 @@ internal fun TrackDetailContent(
     albumGrid: (LazyListScope.() -> Unit)? = null,
     onPlayNextItem: ((Song) -> Unit)? = null,
     onAddToQueueItem: ((Song) -> Unit)? = null,
-    onDeleteItem: ((Song) -> Unit)? = null
+    onDeleteItem: ((Song) -> Unit)? = null,
+    favoriteIds: Set<Long> = emptySet(),
+    onToggleFavoriteItem: ((Song) -> Unit)? = null
 ) {
     val onAccent = if (accent.luminance() > 0.5f) Color.Black else Color.White
     val segmentedColors = SegmentedButtonDefaults.colors(
@@ -209,7 +211,9 @@ SegmentedButton(
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            if (onPlayNextItem != null || onAddToQueueItem != null || onDeleteItem != null) {
+                            if (onPlayNextItem != null || onAddToQueueItem != null || onDeleteItem != null ||
+                                onToggleFavoriteItem != null
+                            ) {
                                 Box {
                                     IconButton(onClick = { menuExpanded = true }) {
                                         Icon(
@@ -223,7 +227,9 @@ SegmentedButton(
                                         onDismissRequest = { menuExpanded = false },
                                         onPlayNext = onPlayNextItem?.let { next -> { next(song) } },
                                         onAddToQueue = onAddToQueueItem?.let { queue -> { queue(song) } },
-                                        onDelete = onDeleteItem?.let { delete -> { delete(song) } }
+                                        onDelete = onDeleteItem?.let { delete -> { delete(song) } },
+                                        isFavorite = song.id in favoriteIds,
+                                        onToggleFavorite = onToggleFavoriteItem?.let { fav -> { fav(song) } }
                                     )
                                 }
                             }

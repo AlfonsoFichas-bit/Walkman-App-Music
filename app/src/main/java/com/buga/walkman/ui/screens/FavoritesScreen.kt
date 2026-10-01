@@ -84,7 +84,9 @@ fun FavoritesScreen(
                                 playerState.isPlaying,
                             onClick = { playerViewModel.playSongs(favoriteSongs, index) },
                             onPlayNext = { playerViewModel.playSongsNext(listOf(song)) },
-                            onAddToQueue = { playerViewModel.addSongsToQueue(listOf(song)) }
+                            onAddToQueue = { playerViewModel.addSongsToQueue(listOf(song)) },
+                            isFavorite = true,
+                            onToggleFavorite = { playerViewModel.toggleFavorite(song) }
                         )
                     }
                 }

@@ -368,6 +368,9 @@ private fun WalkmanPermissionHandler(
         mutableStateOf(checkAudioPermission(context))
     }
 
+    // Resolved here rather than inside the launcher callback, which is not a composable scope.
+    val permissionRequiredMessage = stringResource(R.string.permission_required)
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -378,11 +381,7 @@ private fun WalkmanPermissionHandler(
         }
         hasAudioPermission = audioGranted
         if (!audioGranted) {
-            Toast.makeText(
-                context,
-                context.getString(R.string.permission_required),
-                Toast.LENGTH_LONG
-            ).show()
+            Toast.makeText(context, permissionRequiredMessage, Toast.LENGTH_LONG).show()
         }
     }
 

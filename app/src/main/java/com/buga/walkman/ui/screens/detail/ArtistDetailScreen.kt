@@ -66,6 +66,7 @@ fun ArtistDetailScreen(
         lerp(Color(expressiveArtistColor(title)), Color.Black, 0.4f)
     }
     val playerState by playerViewModel.state.collectAsState()
+    val favoriteIds by playerViewModel.favorites.collectAsState()
     val albums = remember(tracks) {
         tracks.groupBy { it.albumId }
             .map { (albumId, albumTracks) ->
@@ -97,6 +98,8 @@ fun ArtistDetailScreen(
         onPlayNextItem = { song -> playerViewModel.playSongsNext(listOf(song)) },
         onAddToQueueItem = { song -> playerViewModel.addSongsToQueue(listOf(song)) },
         onDeleteItem = { song -> confirmDeleteSong = song },
+        favoriteIds = favoriteIds,
+        onToggleFavoriteItem = { song -> playerViewModel.toggleFavorite(song) },
         accent = playerState.accentHighlight,
         tabs = listOf(tabTracks, tabAlbums),
         selectedTab = if (showAlbums) 1 else 0,

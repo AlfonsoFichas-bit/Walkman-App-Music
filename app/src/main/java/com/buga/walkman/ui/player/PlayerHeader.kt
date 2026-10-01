@@ -49,6 +49,8 @@ internal fun MusicPlayerHeader(
     onOpenArtist: (Long) -> Unit = {},
     onOpenAlbum: (Long) -> Unit = {},
     onDeleteSong: (Song) -> Unit = {},
+    onOpenCassetteView: () -> Unit = {},
+    onEditMetadata: (Song) -> Unit = {},
     accentColor: Color = MaterialTheme.colorScheme.primary,
     showBranding: Boolean = true
 ) {
@@ -94,7 +96,9 @@ internal fun MusicPlayerHeader(
                         currentSong = currentSong,
                         onOpenArtist = onOpenArtist,
                         onOpenAlbum = onOpenAlbum,
-                        onDeleteSong = onDeleteSong
+                        onDeleteSong = onDeleteSong,
+                        onOpenCassetteView = onOpenCassetteView,
+                        onEditMetadata = onEditMetadata
                     )
                 }
             }
@@ -154,7 +158,9 @@ internal fun MusicPlayerHeader(
                     currentSong = currentSong,
                     onOpenArtist = onOpenArtist,
                     onOpenAlbum = onOpenAlbum,
-                    onDeleteSong = onDeleteSong
+                    onDeleteSong = onDeleteSong,
+                    onOpenCassetteView = onOpenCassetteView,
+                    onEditMetadata = onEditMetadata
                 )
             }
         }
@@ -183,7 +189,9 @@ private fun MoreMenuButton(
     currentSong: Song?,
     onOpenArtist: (Long) -> Unit,
     onOpenAlbum: (Long) -> Unit,
-    onDeleteSong: (Song) -> Unit = {}
+    onDeleteSong: (Song) -> Unit = {},
+    onOpenCassetteView: () -> Unit = {},
+    onEditMetadata: (Song) -> Unit = {}
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
@@ -206,6 +214,8 @@ private fun MoreMenuButton(
                     if (song.albumId > 0) {
                         add(stringResource(R.string.menu_album) to { onOpenAlbum(song.albumId) })
                     }
+                    add(stringResource(R.string.player_view_cassette) to onOpenCassetteView)
+                    add(stringResource(R.string.edit_metadata) to { onEditMetadata(song) })
                     add(stringResource(R.string.delete_song) to {
                         showDeleteConfirm = true
                     })

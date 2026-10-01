@@ -51,6 +51,7 @@ fun AlbumDetailScreen(
     val tracks by trackListViewModel.tracks.collectAsState()
     val album = albums.find { it.id == albumId }
     val playerState by playerViewModel.state.collectAsState()
+    val favoriteIds by playerViewModel.favorites.collectAsState()
     val title = album?.title ?: tracks.firstOrNull()?.album.orEmpty()
     val artist = album?.artist ?: tracks.firstOrNull()?.artist.orEmpty()
     val songCount = album?.songCount ?: tracks.size
@@ -70,6 +71,8 @@ fun AlbumDetailScreen(
         onPlayNextItem = { song -> playerViewModel.playSongsNext(listOf(song)) },
         onAddToQueueItem = { song -> playerViewModel.addSongsToQueue(listOf(song)) },
         onDeleteItem = { song -> confirmDeleteSong = song },
+        favoriteIds = favoriteIds,
+        onToggleFavoriteItem = { song -> playerViewModel.toggleFavorite(song) },
         accent = playerState.accentHighlight,
         headerContent = {
             Row(

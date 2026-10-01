@@ -2,10 +2,13 @@ package com.buga.walkman.ui
 
 import android.content.res.Configuration.ORIENTATION_LANDSCAPE
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -45,7 +48,10 @@ import androidx.compose.ui.util.lerp
 import androidx.media3.common.Player
 import com.buga.walkman.model.Playlist
 import com.buga.walkman.model.Song
+import com.buga.walkman.ui.components.SongEditScreen
 import com.buga.walkman.ui.components.rememberSongDeleter
+import com.buga.walkman.ui.components.rememberSongMetadataEditor
+import com.buga.walkman.ui.player.CassetteFullScreen
 import com.buga.walkman.ui.player.CoverPage
 import com.buga.walkman.ui.player.MusicPlayerHeader
 import com.buga.walkman.ui.player.PlaybackControlsSection
@@ -77,37 +83,59 @@ fun WalkmanScreen(
     val playlists by viewModel.playlists.collectAsState()
 
     val onDeleteSong = rememberSongDeleter(viewModel)
+    val metadataEditor = rememberSongMetadataEditor(viewModel)
 
     BackHandler(onBack = onCollapse)
 
-    WalkmanScreenContent(
-        state = state,
-        onPlayPause = viewModel::togglePlayPause,
-        onNext = viewModel::next,
-        onPrev = viewModel::previous,
-        onSeek = viewModel::seekToFraction,
-        onSelectSong = viewModel::skipToQueueItem,
-        onToggleShuffle = viewModel::toggleShuffle,
-        onCycleRepeat = viewModel::cycleRepeatMode,
-        favoriteIds = favoriteIds,
-        onToggleFavorite = viewModel::toggleFavorite,
-        playlists = playlists,
-        onAddToPlaylist = { song, playlistId -> viewModel.addSongToPlaylist(playlistId, song) },
-        onOpenQueue = onOpenQueue,
-        onLogoClick = onLogoClick,
-        onSearchClick = onOpenSearch,
-        onMoreClick = {},
-        onOpenArtist = onOpenArtist,
-        onOpenAlbum = onOpenAlbum,
-        onDeleteSong = onDeleteSong,
-        onCollapse = onCollapse
-    )
+    Box(modifier = Modifier.fillMaxSize()) {
+        WalkmanScreenContent(
+            state = state,
+            isPlaying = state.isPlaying,
+            cassetteView = state.cassetteView,
+            onToggleView = viewModel::togglePlayerView,
+            onPlayPause = viewModel::togglePlayPause,
+            onNext = viewModel::next,
+            onPrev = viewModel::previous,
+            onSeek = viewModel::seekToFraction,
+            onSelectSong = viewModel::skipToQueueItem,
+            onToggleShuffle = viewModel::toggleShuffle,
+            onCycleRepeat = viewModel::cycleRepeatMode,
+            favoriteIds = favoriteIds,
+            onToggleFavorite = viewModel::toggleFavorite,
+            playlists = playlists,
+            onAddToPlaylist = { song, playlistId -> viewModel.addSongToPlaylist(playlistId, song) },
+            onOpenQueue = onOpenQueue,
+            onLogoClick = onLogoClick,
+            onSearchClick = onOpenSearch,
+            onMoreClick = {},
+            onOpenArtist = onOpenArtist,
+            onOpenAlbum = onOpenAlbum,
+            onDeleteSong = onDeleteSong,
+            onEditMetadata = metadataEditor::requestEdit,
+            onCollapse = onCollapse
+        )
+
+        metadataEditor.song?.let { song ->
+            SongEditScreen(
+                song = song,
+                coverUri = metadataEditor.coverCandidate,
+                hasCustomCover = metadataEditor.hasCustomCover(song),
+                onPickCover = metadataEditor::pickCover,
+                onRestoreCover = { metadataEditor.restoreCover(song) },
+                onBack = metadataEditor::dismiss,
+                onSave = metadataEditor::save
+            )
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WalkmanScreenContent(
     state: PlayerUiState,
+    isPlaying: Boolean = false,
+    cassetteView: Boolean = false,
+    onToggleView: () -> Unit = {},
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onPrev: () -> Unit,
@@ -126,6 +154,7 @@ fun WalkmanScreenContent(
     onOpenArtist: (Long) -> Unit = {},
     onOpenAlbum: (Long) -> Unit = {},
     onDeleteSong: (Song) -> Unit = {},
+    onEditMetadata: (Song) -> Unit = {},
     onCollapse: () -> Unit = {}
 ) {
     val colorTransitionSpec = spring<Color>(
@@ -269,6 +298,8 @@ fun WalkmanScreenContent(
                     onOpenArtist = onOpenArtist,
                     onOpenAlbum = onOpenAlbum,
                     onDeleteSong = onDeleteSong,
+                    onOpenCassetteView = onToggleView,
+                    onEditMetadata = onEditMetadata,
                     accentColor = animatedAccent,
                     showBranding = false
                 )
@@ -352,6 +383,8 @@ fun WalkmanScreenContent(
                     onOpenArtist = onOpenArtist,
                     onOpenAlbum = onOpenAlbum,
                     onDeleteSong = onDeleteSong,
+                    onOpenCassetteView = onToggleView,
+                    onEditMetadata = onEditMetadata,
                     accentColor = animatedAccent
                 )
 
@@ -398,6 +431,23 @@ fun WalkmanScreenContent(
                 )
             }
         }
+        }
+
+        AnimatedVisibility(
+            visible = cassetteView,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            CassetteFullScreen(
+                song = state.currentSong,
+                isPlaying = isPlaying,
+                currentIndex = state.currentIndex,
+                accentColor = animatedAccent,
+                onBack = onToggleView,
+                onNext = onNext,
+                onPrev = onPrev,
+                onPlayPause = onPlayPause
+            )
         }
     }
 }

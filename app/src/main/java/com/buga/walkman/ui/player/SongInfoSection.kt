@@ -63,7 +63,7 @@ internal fun SongInfoSection(
 
         Spacer(modifier = Modifier.height(30.dp))
 
-if (queue.isEmpty()) {
+        if (queue.isEmpty()) {
             EmptyCover()
         } else {
             AlbumArtCarousel(

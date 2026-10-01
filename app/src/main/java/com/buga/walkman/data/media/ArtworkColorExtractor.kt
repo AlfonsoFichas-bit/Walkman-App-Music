@@ -12,6 +12,10 @@ import coil.request.SuccessResult
 import com.buga.walkman.ui.theme.WalkmanAccentHighlight
 import com.buga.walkman.ui.theme.WalkmanGradientBottom
 import com.buga.walkman.ui.theme.WalkmanGradientTop
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
 data class PlayerGradientColors(
@@ -23,14 +27,20 @@ data class PlayerGradientColors(
 
 class ArtworkColorExtractor(private val context: Context) {
 
-    private var lastAlbumId: Long = -1L
+    private val mutex = Mutex()
+    private var lastKey: String? = null
     private var lastColors: PlayerGradientColors? = null
 
     suspend fun colorsFor(albumId: Long, albumArtUri: Uri): PlayerGradientColors {
-        lastColors?.takeIf { albumId == lastAlbumId }?.let { return it }
+        // Keyed by URI as well as album id: tracks with no album all share albumId 0, and keying on
+        // the id alone made every one of them return the first track's palette.
+        val key = "$albumId|$albumArtUri"
+        mutex.withLock { lastColors?.takeIf { key == lastKey } }?.let { return it }
         val colors = extractArtworkColors(context, albumArtUri)
-        lastAlbumId = albumId
-        lastColors = colors
+        mutex.withLock {
+            lastKey = key
+            lastColors = colors
+        }
         return colors
     }
 }
@@ -52,7 +62,10 @@ private suspend fun extractArtworkColors(context: Context, uri: Uri): PlayerGrad
             val drawable = result.drawable
             val bitmap = (drawable as? BitmapDrawable)?.bitmap
                 ?: return fallback
-            val palette = Palette.from(bitmap).generate()
+            // Palette.from(...).generate() walks every pixel and quantises in Lab/HSL, so it must not
+            // run on the caller's dispatcher. Callers include the player ViewModel, whose scope is
+            // Main, and the playback service.
+            val palette = withContext(Dispatchers.Default) { Palette.from(bitmap).generate() }
 
             val vibrantInt = palette.getDarkVibrantColor(0)
             val mutedInt = palette.getDarkMutedColor(0)

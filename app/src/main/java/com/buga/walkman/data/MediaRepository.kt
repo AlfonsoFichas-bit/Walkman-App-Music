@@ -97,7 +97,8 @@ class MediaRepository(private val context: Context) {
             MediaStore.Audio.Media.ARTIST_ID,
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.TRACK,
-            MediaStore.Audio.Media.DATA
+            MediaStore.Audio.Media.DATA,
+            MediaStore.Audio.Media.MIME_TYPE
         )
         val songs = mutableListOf<Song>()
 
@@ -133,7 +134,9 @@ class MediaRepository(private val context: Context) {
                     artistId = cursor.getLong(5),
                     duration = cursor.getInt(6),
                     trackNumber = cursor.getInt(7),
-                    uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, cursor.getLong(0))
+                    uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, cursor.getLong(0)),
+                    mimeType = cursor.getString(9),
+                    dataPath = cursor.getString(8)
                 )
             }
         }

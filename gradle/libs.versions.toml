@@ -20,6 +20,8 @@ documentfile = "1.0.1"
 nextlib = "1.11.0-0.14.0"
 room = "2.7.2"
 ksp = "2.3.6"
+mp3agic = "0.9.1"
+jaudiotagger = "2.2.5"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -50,6 +52,8 @@ androidx-documentfile = { group = "androidx.documentfile", name = "documentfile"
 nextlib-media3ext = { group = "io.github.anilbeesetti", name = "nextlib-media3ext", version.ref = "nextlib" }
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+mp3agic = { group = "com.mpatric", name = "mp3agic", version.ref = "mp3agic" }
+jaudiotagger = { group = "net.jthink", name = "jaudiotagger", version.ref = "jaudiotagger" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

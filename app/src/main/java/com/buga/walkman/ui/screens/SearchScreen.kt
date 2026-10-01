@@ -63,6 +63,7 @@ fun SearchScreen(
     val songs by libraryViewModel.songs.collectAsState()
     val albums by libraryViewModel.albums.collectAsState()
     val playerState by playerViewModel.state.collectAsState()
+    val favoriteIds by playerViewModel.favorites.collectAsState()
     var query by rememberSaveable { mutableStateOf("") }
     var showAllSongs by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -151,7 +152,9 @@ fun SearchScreen(
                                         playerState.isPlaying,
                                     onClick = { playerViewModel.playSongs(visibleSongs, index) },
                                     onPlayNext = { playerViewModel.playSongsNext(listOf(song)) },
-                                    onAddToQueue = { playerViewModel.addSongsToQueue(listOf(song)) }
+                                    onAddToQueue = { playerViewModel.addSongsToQueue(listOf(song)) },
+                                    isFavorite = song.id in favoriteIds,
+                                    onToggleFavorite = { playerViewModel.toggleFavorite(song) }
                                 )
                             }
                             if (filteredSongs.size > 5) {

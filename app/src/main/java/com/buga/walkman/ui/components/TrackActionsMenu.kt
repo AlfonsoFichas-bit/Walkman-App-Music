@@ -5,6 +5,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
@@ -30,11 +32,18 @@ fun TrackActionsMenu(
     onPlayNext: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
+    isFavorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val playNextLabel = stringResource(R.string.play_next)
     val addToQueueLabel = stringResource(R.string.add_to_queue)
     val deleteLabel = stringResource(R.string.delete_song)
+    val favoriteLabel = if (isFavorite) {
+        stringResource(R.string.remove_from_favorites)
+    } else {
+        stringResource(R.string.add_to_favorites)
+    }
 
     val entries = buildList {
         if (onPlayNext != null) {
@@ -42,6 +51,14 @@ fun TrackActionsMenu(
         }
         if (onAddToQueue != null) {
             add(MenuEntry(addToQueueLabel, Icons.Filled.PlaylistAdd) { onAddToQueue() })
+        }
+        if (onToggleFavorite != null) {
+            add(
+                MenuEntry(
+                    favoriteLabel,
+                    if (isFavorite) Icons.Filled.Star else Icons.Outlined.Star
+                ) { onToggleFavorite() }
+            )
         }
         if (onDelete != null) {
             add(MenuEntry(deleteLabel, Icons.Filled.Delete) { onDelete() })

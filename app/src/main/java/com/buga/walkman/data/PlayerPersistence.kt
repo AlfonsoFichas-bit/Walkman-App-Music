@@ -1,6 +1,7 @@
 package com.buga.walkman.data
 
 import android.content.Context
+import androidx.media3.common.Player
 import com.buga.walkman.data.db.AppDatabase
 import com.buga.walkman.data.db.PlaylistEntity
 import com.buga.walkman.data.db.toFavoriteEntity
@@ -71,6 +72,18 @@ class PlayerPersistence(private val context: Context, private val database: AppD
 
     fun loadShuffleEnabled(): Boolean = prefs.getBoolean(KEY_SHUFFLE, false)
 
+    fun saveRepeatMode(mode: Int) {
+        prefs.edit().putInt(KEY_REPEAT, mode).apply()
+    }
+
+    fun loadRepeatMode(): Int = prefs.getInt(KEY_REPEAT, Player.REPEAT_MODE_OFF)
+
+    fun savePlayerViewMode(cassette: Boolean) {
+        prefs.edit().putBoolean(KEY_PLAYER_VIEW, cassette).apply()
+    }
+
+    fun loadPlayerViewMode(): Boolean = prefs.getBoolean(KEY_PLAYER_VIEW, false)
+
     suspend fun setFavorite(song: Song, favorite: Boolean) {
         val dao = database.favoriteDao()
         if (favorite) {
@@ -95,10 +108,19 @@ class PlayerPersistence(private val context: Context, private val database: AppD
         database.playHistoryDao().remove(songId)
     }
 
+    suspend fun updateSongMetadata(songId: Long, title: String, artist: String, album: String) {
+        database.favoriteDao().updateMetadata(songId, title, artist, album)
+        database.queueDao().updateMetadata(songId, title, artist, album)
+        database.playHistoryDao().updateMetadata(songId, title, artist, album)
+        database.playlistSongDao().updateMetadata(songId, title, artist, album)
+    }
+
     companion object {
         private const val KEY_SHUFFLE = "shuffle_enabled"
+        private const val KEY_REPEAT = "repeat_mode"
         private const val KEY_INDEX = "queue_index"
         private const val KEY_POSITION = "queue_position"
+        private const val KEY_PLAYER_VIEW = "player_view_mode"
     }
 }
 

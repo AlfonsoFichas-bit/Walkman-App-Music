@@ -1,8 +1,13 @@
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.buga.walkman.viewmodel
 
 import android.app.Application
 import android.content.ComponentName
+import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
+import android.provider.MediaStore
 import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
@@ -15,6 +20,8 @@ import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.buga.walkman.data.AudioTagWriter
+import com.buga.walkman.data.CoverStore
 import com.buga.walkman.data.LibraryEvents
 import com.buga.walkman.data.PlayerPersistence
 import com.buga.walkman.data.db.AppDatabase
@@ -30,6 +37,7 @@ import com.buga.walkman.ui.theme.WalkmanGradientBottom
 import com.buga.walkman.ui.theme.WalkmanGradientTop
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -47,6 +55,7 @@ data class PlayerUiState(
     val currentIndex: Int = -1,
     val shuffleEnabled: Boolean = false,
     val repeatMode: Int = Player.REPEAT_MODE_OFF,
+    val cassetteView: Boolean = false,
     val gradientTop: Color = WalkmanGradientTop,
     val gradientBottom: Color = WalkmanGradientBottom,
     val accentHighlight: Color = WalkmanAccentHighlight,
@@ -82,6 +91,7 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
     private var restorePending = false
     private var originalQueue: List<Song> = emptyList()
     private var shuffleActive = false
+    private var paletteJob: Job? = null
 
     private val listener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -120,6 +130,7 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
     init {
         connect()
         observePersistence()
+        restorePlayerView()
         viewModelScope.launch {
             while (isActive) {
                 _controller.value?.let { controller ->
@@ -174,6 +185,7 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
                     _controller.value = controller
                     restorePending = true
                     restoreShuffle(controller)
+                    restoreRepeatMode(controller)
                     refreshQueue(controller)
                     refreshCurrent(controller)
                     restoreQueueIfNeeded(controller)
@@ -199,7 +211,11 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
             )
         }
         if (song != null) {
-            viewModelScope.launch {
+            // Cancelled on every new track so skipping quickly cannot leave several Palette
+            // computations racing to write the gradient, where the last to finish would win instead
+            // of the last one requested.
+            paletteJob?.cancel()
+            paletteJob = viewModelScope.launch {
                 val colors = artworkColors.colorsFor(song.albumId, song.albumArtUri)
                 _state.update {
                     it.copy(
@@ -234,6 +250,22 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
     private fun restoreShuffle(controller: MediaController) {
         shuffleActive = persistence.loadShuffleEnabled()
         _state.update { it.copy(shuffleEnabled = shuffleActive) }
+    }
+
+    private fun restorePlayerView() {
+        _state.update { it.copy(cassetteView = persistence.loadPlayerViewMode()) }
+    }
+
+    fun togglePlayerView() {
+        val newMode = !_state.value.cassetteView
+        _state.update { it.copy(cassetteView = newMode) }
+        persistence.savePlayerViewMode(newMode)
+    }
+
+    private fun restoreRepeatMode(controller: MediaController) {
+        val saved = persistence.loadRepeatMode()
+        controller.repeatMode = saved
+        _state.update { it.copy(repeatMode = saved) }
     }
 
     private fun restoreQueueIfNeeded(controller: MediaController) {
@@ -375,11 +407,13 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
 
     fun cycleRepeatMode() {
         val controller = _controller.value ?: return
-        controller.repeatMode = when (_state.value.repeatMode) {
+        val newMode = when (_state.value.repeatMode) {
             Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
             Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
             else -> Player.REPEAT_MODE_OFF
         }
+        controller.repeatMode = newMode
+        viewModelScope.launch { persistence.saveRepeatMode(newMode) }
     }
 
     fun skipToQueueItem(index: Int) {
@@ -465,6 +499,95 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
         }
     }
 
+    fun updateSongMetadata(
+        song: Song,
+        title: String,
+        artist: String,
+        album: String,
+        coverUri: Uri? = null
+    ) {
+        val newTitle = title.trim().ifEmpty { song.title }
+        val newArtist = artist.trim().ifEmpty { song.artist }
+        val newAlbum = album.trim().ifEmpty { song.album }
+        val metadataChanged =
+            newTitle != song.title || newArtist != song.artist || newAlbum != song.album
+        if (!metadataChanged && coverUri == null) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val application = getApplication<Application>()
+            var coverFile: java.io.File? = null
+            if (coverUri != null) {
+                try {
+                    CoverStore.save(application, song.id, coverUri)
+                    coverFile = CoverStore.file(application, song.id)
+                } catch (_: Exception) {
+                }
+            }
+            if (metadataChanged || coverFile != null) {
+                try {
+                    AudioTagWriter.apply(
+                        application,
+                        song,
+                        newTitle,
+                        newArtist,
+                        newAlbum,
+                        coverFile
+                    )
+                } catch (_: Exception) {
+                }
+            }
+            if (metadataChanged) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Audio.Media.TITLE, newTitle)
+                    put(MediaStore.Audio.Media.ARTIST, newArtist)
+                    put(MediaStore.Audio.Media.ALBUM, newAlbum)
+                }
+                var success = false
+                try {
+                    success = application.contentResolver.update(song.uri, values, null, null) > 0
+                    if (success) {
+                        application.contentResolver.notifyChange(song.uri, null)
+                    }
+                } catch (_: Exception) {
+                    success = false
+                }
+                if (success) {
+                    updatePlayerMediaItem(
+                        song.copy(title = newTitle, artist = newArtist, album = newAlbum)
+                    )
+                }
+            }
+            persistence.updateSongMetadata(song.id, newTitle, newArtist, newAlbum)
+            LibraryEvents.requestLibraryReload()
+        }
+    }
+
+    fun hasOriginalCover(song: Song): Boolean =
+        AudioTagWriter.hasOriginalCover(getApplication(), song.id)
+
+    fun restoreSongCover(song: Song) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val application = getApplication<Application>()
+            try {
+                AudioTagWriter.restoreOriginal(application, song)
+            } catch (_: Exception) {
+            }
+            CoverStore.remove(application, song.id)
+            LibraryEvents.requestLibraryReload()
+        }
+    }
+
+    private fun updatePlayerMediaItem(updated: Song) {
+        originalQueue = originalQueue.map { if (it.id == updated.id) updated else it }
+        _controller.value?.takeIf { it.mediaItemCount > 0 }?.let { player ->
+            val index = (0 until player.mediaItemCount).firstOrNull {
+                player.getMediaItemAt(it).mediaId == updated.id.toString()
+            }
+            if (index != null && player.getMediaItemAt(index).localConfiguration?.uri == updated.uri) {
+                player.replaceMediaItem(index, updated.toMediaItem())
+            }
+        }
+    }
+
     private suspend fun cleanupDeletedSong(song: Song) {
         _controller.value?.takeIf { it.mediaItemCount > 0 }?.let { player ->
             val index = (0 until player.mediaItemCount).firstOrNull {
@@ -482,7 +605,14 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
     }
 
     override fun onCleared() {
+        paletteJob?.cancel()
+        // The listener was added in the connect callback, so it has to come off before the future is
+        // released; otherwise it keeps a reference to this cleared ViewModel.
+        _controller.value?.removeListener(listener)
+        _controller.value?.release()
+        _controller.value = null
         controllerFuture?.let { MediaController.releaseFuture(it) }
+        controllerFuture = null
         super.onCleared()
     }
 

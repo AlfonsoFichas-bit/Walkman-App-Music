@@ -1,5 +1,9 @@
 *.iml
 .gradle
+.idea
+.kotlin
+.vscode
+.zed
 /local.properties
 /.idea/caches
 /.idea/libraries
@@ -12,4 +16,6 @@
 /captures
 .externalNativeBuild
 .cxx
+.idea
+.kotlin
 local.properties
