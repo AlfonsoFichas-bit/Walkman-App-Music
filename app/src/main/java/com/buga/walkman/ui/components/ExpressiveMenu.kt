@@ -96,7 +96,7 @@ internal fun expressiveItemShape(index: Int, count: Int): Shape = when {
     else -> MenuDefaults.middleItemShape
 }
 
-internal fun compositeOver(top: Color, bottom: Color): Color {
+fun compositeOver(top: Color, bottom: Color): Color {
     val alpha = top.alpha + bottom.alpha * (1f - top.alpha)
     if (alpha == 0f) return Color.Transparent
     return Color(

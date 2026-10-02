@@ -24,7 +24,7 @@ fun AddToPlaylistDialog(
     onAdd: (Long) -> Unit
 ) {
     AlertDialog(
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = com.buga.walkman.ui.components.LocalPlayerCoverAccent.current.takeIf { it != androidx.compose.ui.graphics.Color.Unspecified }?.let { color -> com.buga.walkman.ui.components.compositeOver(androidx.compose.ui.graphics.Color(0x99000000), color) } ?: androidx.compose.material3.MaterialTheme.colorScheme.surface,
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.add_to_playlist)) },
         text = {

@@ -236,7 +236,6 @@ internal fun AlbumArtCarousel(
     }
 }
 
-@Composable
 
 @Composable
 internal fun CoverPage(song: Song, isTilted: Boolean, onToggleTilt: () -> Unit) {
