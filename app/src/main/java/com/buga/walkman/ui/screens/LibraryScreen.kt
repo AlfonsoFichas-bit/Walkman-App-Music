@@ -75,6 +75,7 @@ import com.buga.walkman.model.Song
 import com.buga.walkman.ui.components.ArtistPlaceholder
 import com.buga.walkman.ui.components.CoverImage
 import com.buga.walkman.ui.components.DeleteSongDialog
+import com.buga.walkman.ui.components.AddToPlaylistDialog
 import com.buga.walkman.ui.components.EmptyState
 import com.buga.walkman.ui.components.LocalPlayerCoverAccent
 import com.buga.walkman.ui.components.SongListItem
@@ -124,6 +125,7 @@ fun LibraryScreen(
         ?: playerState.accentHighlight
 
     var confirmDeleteSong by remember { mutableStateOf<Song?>(null) }
+    var showAddToPlaylistDialog by remember { mutableStateOf<Song?>(null) }
     val requestDelete = rememberSongDeleter(playerViewModel)
 
     Column(
@@ -169,6 +171,7 @@ fun LibraryScreen(
                     onPlaySong = { index -> playerViewModel.playSongs(songs, index) },
                     onPlayNext = { song -> playerViewModel.playSongsNext(listOf(song)) },
                     onAddToQueue = { song -> playerViewModel.addSongsToQueue(listOf(song)) },
+                    onAddToPlaylist = { song -> showAddToPlaylistDialog = song },
                     onDelete = { song -> confirmDeleteSong = song },
                     onToggleFavorite = { song -> playerViewModel.toggleFavorite(song) }
                 )
@@ -197,6 +200,17 @@ fun LibraryScreen(
         }
     }
 
+    showAddToPlaylistDialog?.let { song ->
+        AddToPlaylistDialog(
+            playlists = playlists,
+            onDismiss = { showAddToPlaylistDialog = null },
+            onAdd = { playlistId ->
+                playerViewModel.addSongToPlaylist(playlistId, song)
+                showAddToPlaylistDialog = null
+            }
+        )
+    }
+
     confirmDeleteSong?.let { song ->
         DeleteSongDialog(
             song = song,
@@ -217,6 +231,7 @@ private fun SongsTab(
     onPlaySong: (Int) -> Unit,
     onPlayNext: (Song) -> Unit,
     onAddToQueue: (Song) -> Unit,
+    onAddToPlaylist: (Song) -> Unit,
     onDelete: (Song) -> Unit,
     onToggleFavorite: (Song) -> Unit
 ) {
@@ -233,6 +248,7 @@ private fun SongsTab(
                 onClick = { onPlaySong(index) },
                 onPlayNext = { onPlayNext(song) },
                 onAddToQueue = { onAddToQueue(song) },
+                onAddToPlaylist = { onAddToPlaylist(song) },
                 onDelete = { onDelete(song) },
                 isFavorite = song.id in favoriteIds,
                 onToggleFavorite = { onToggleFavorite(song) }

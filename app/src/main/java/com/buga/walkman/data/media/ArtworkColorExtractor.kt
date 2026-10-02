@@ -139,8 +139,7 @@ private suspend fun extractArtworkColors(context: Context, uri: Uri): PlayerGrad
         } else {
             fallback
         }
-    } catch (e: Exception) {
-        if (e is kotlinx.coroutines.CancellationException) throw e
+    } catch (_: Exception) {
         fallback
     }
 }

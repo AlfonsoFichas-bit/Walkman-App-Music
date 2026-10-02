@@ -34,6 +34,7 @@ fun SongListItem(
     onClick: () -> Unit,
     onPlayNext: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
+    onAddToPlaylist: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
@@ -41,7 +42,7 @@ fun SongListItem(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val hasMenu = onPlayNext != null || onAddToQueue != null || onDelete != null ||
-        onToggleFavorite != null
+        onToggleFavorite != null || onAddToPlaylist != null
 
     ListItem(
         headlineContent = {
@@ -91,6 +92,7 @@ fun SongListItem(
                             onDismissRequest = { menuExpanded = false },
                             onPlayNext = onPlayNext,
                             onAddToQueue = onAddToQueue,
+                            onAddToPlaylist = onAddToPlaylist,
                             onDelete = onDelete,
                             isFavorite = isFavorite,
                             onToggleFavorite = onToggleFavorite

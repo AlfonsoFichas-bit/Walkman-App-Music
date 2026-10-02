@@ -31,6 +31,7 @@ fun TrackActionsMenu(
     darkOverlay: Color = Color(0x99000000),
     onPlayNext: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
+    onAddToPlaylist: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
@@ -51,6 +52,9 @@ fun TrackActionsMenu(
         }
         if (onAddToQueue != null) {
             add(MenuEntry(addToQueueLabel, Icons.Filled.PlaylistAdd) { onAddToQueue() })
+        }
+        if (onAddToPlaylist != null) {
+            add(MenuEntry(stringResource(R.string.add_to_playlist), Icons.Filled.PlaylistAdd) { onAddToPlaylist() })
         }
         if (onToggleFavorite != null) {
             add(

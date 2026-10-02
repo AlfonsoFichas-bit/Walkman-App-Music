@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import com.buga.walkman.R
 import com.buga.walkman.model.Playlist
 import com.buga.walkman.model.Song
+import com.buga.walkman.ui.components.AddToPlaylistDialog
 import com.buga.walkman.ui.components.CoverImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -236,44 +237,6 @@ internal fun AlbumArtCarousel(
 }
 
 @Composable
-private fun AddToPlaylistDialog(
-    playlists: List<Playlist>,
-    onDismiss: () -> Unit,
-    onAdd: (Long) -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.add_to_playlist)) },
-        text = {
-            if (playlists.isEmpty()) {
-                Text(stringResource(R.string.no_playlists))
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(260.dp)
-                ) {
-                    items(playlists, key = { it.id }) { playlist ->
-                        Text(
-                            text = playlist.name,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onAdd(playlist.id) }
-                                .padding(vertical = 12.dp, horizontal = 4.dp)
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
-    )
-}
 
 @Composable
 internal fun CoverPage(song: Song, isTilted: Boolean, onToggleTilt: () -> Unit) {
