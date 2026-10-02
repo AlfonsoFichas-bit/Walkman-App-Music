@@ -86,6 +86,9 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
     private val _playlists = MutableStateFlow<List<Playlist>>(emptyList())
     val playlists: StateFlow<List<Playlist>> = _playlists.asStateFlow()
 
+    private val _playlistSongCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
+    val playlistSongCounts: StateFlow<Map<Long, Int>> = _playlistSongCounts.asStateFlow()
+
     private val _controller = MutableStateFlow<MediaController?>(null)
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var restorePending = false
@@ -167,6 +170,11 @@ class PlayerControllerViewModel(application: Application) : AndroidViewModel(app
         viewModelScope.launch {
             persistence.observePlaylists().collect { list ->
                 _playlists.value = list
+            }
+        }
+        viewModelScope.launch {
+            persistence.observePlaylistSongCounts().collect { counts ->
+                _playlistSongCounts.value = counts
             }
         }
     }

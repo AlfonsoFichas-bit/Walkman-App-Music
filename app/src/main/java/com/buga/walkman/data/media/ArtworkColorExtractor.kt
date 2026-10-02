@@ -12,6 +12,7 @@ import coil.request.SuccessResult
 import com.buga.walkman.ui.theme.WalkmanAccentHighlight
 import com.buga.walkman.ui.theme.WalkmanGradientBottom
 import com.buga.walkman.ui.theme.WalkmanGradientTop
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -25,6 +26,13 @@ data class PlayerGradientColors(
     val tertiary: Color
 )
 
+private val FallbackColors = PlayerGradientColors(
+    top = WalkmanGradientTop,
+    bottom = WalkmanGradientBottom,
+    highlight = WalkmanAccentHighlight,
+    tertiary = WalkmanAccentHighlight
+)
+
 class ArtworkColorExtractor(private val context: Context) {
 
     private val mutex = Mutex()
@@ -36,7 +44,10 @@ class ArtworkColorExtractor(private val context: Context) {
         // the id alone made every one of them return the first track's palette.
         val key = "$albumId|$albumArtUri"
         mutex.withLock { lastColors?.takeIf { key == lastKey } }?.let { return it }
-        val colors = extractArtworkColors(context, albumArtUri)
+        // A failed extraction returns null and is deliberately not cached. Caching it would pin that
+        // album to the fallback colours for the rest of the session, so one bad read (or a cancelled
+        // job) left the dynamic artwork colours stuck and the gradient never changed again.
+        val colors = extractArtworkColors(context, albumArtUri) ?: return FallbackColors
         mutex.withLock {
             lastKey = key
             lastColors = colors
@@ -45,13 +56,7 @@ class ArtworkColorExtractor(private val context: Context) {
     }
 }
 
-private suspend fun extractArtworkColors(context: Context, uri: Uri): PlayerGradientColors {
-    val fallback = PlayerGradientColors(
-        top = WalkmanGradientTop,
-        bottom = WalkmanGradientBottom,
-        highlight = WalkmanAccentHighlight,
-        tertiary = WalkmanAccentHighlight
-    )
+private suspend fun extractArtworkColors(context: Context, uri: Uri): PlayerGradientColors? {
     return try {
         val request = ImageRequest.Builder(context)
             .data(uri)
@@ -61,7 +66,7 @@ private suspend fun extractArtworkColors(context: Context, uri: Uri): PlayerGrad
         if (result is SuccessResult) {
             val drawable = result.drawable
             val bitmap = (drawable as? BitmapDrawable)?.bitmap
-                ?: return fallback
+                ?: return null
             // Palette.from(...).generate() walks every pixel and quantises in Lab/HSL, so it must not
             // run on the caller's dispatcher. Callers include the player ViewModel, whose scope is
             // Main, and the playback service.
@@ -108,7 +113,7 @@ private suspend fun extractArtworkColors(context: Context, uri: Uri): PlayerGrad
             }
 
             if (topRaw == 0 && bottomRaw == 0 && highlightRaw == 0 && tertiaryRaw == 0) {
-                return fallback
+                return null
             }
 
             val topColor = if (topRaw != 0) {
@@ -137,10 +142,15 @@ private suspend fun extractArtworkColors(context: Context, uri: Uri): PlayerGrad
 
             PlayerGradientColors(top = top, bottom = bottom, highlight = highlightColor, tertiary = tertiaryColor)
         } else {
-            fallback
+            null
         }
+    } catch (e: CancellationException) {
+        // Must precede the generic catch below: CancellationException is an Exception, and callers
+        // cancel this job on every track change. Swallowing it here would return the fallback
+        // colours as if they had been extracted from the artwork.
+        throw e
     } catch (_: Exception) {
-        fallback
+        null
     }
 }
 

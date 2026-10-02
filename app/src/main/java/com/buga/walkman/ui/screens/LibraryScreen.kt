@@ -98,7 +98,8 @@ fun LibraryScreen(
     onTabSelected: (Int) -> Unit = {},
     onOpenAlbum: (Long) -> Unit,
     onOpenArtist: (Long) -> Unit,
-    onOpenFavorites: () -> Unit
+    onOpenFavorites: () -> Unit,
+    onOpenPlaylist: (Long) -> Unit
 ) {
     val songs by libraryViewModel.songs.collectAsState()
     val albums by libraryViewModel.albums.collectAsState()
@@ -106,6 +107,7 @@ fun LibraryScreen(
     val favoriteSongs by playerViewModel.favoriteSongs.collectAsState()
     val favoriteIds by playerViewModel.favorites.collectAsState()
     val playlists by playerViewModel.playlists.collectAsState()
+    val playlistSongCounts by playerViewModel.playlistSongCounts.collectAsState()
     val playerState by playerViewModel.state.collectAsState()
 
     val tabTitles = listOf(
@@ -192,8 +194,10 @@ fun LibraryScreen(
                 2 -> ArtistsTab(artists = artists, onOpenArtist = onOpenArtist)
                 else -> PlaylistsTab(
                     playlists = playlists,
+                    playlistSongCounts = playlistSongCounts,
                     favoriteSongs = favoriteSongs,
                     onOpenFavorites = onOpenFavorites,
+                    onOpenPlaylist = onOpenPlaylist,
                     onCreatePlaylist = playerViewModel::createPlaylist
                 )
             }
@@ -392,8 +396,10 @@ private fun ArtistsTab(artists: List<Artist>, onOpenArtist: (Long) -> Unit) {
 @Composable
 private fun PlaylistsTab(
     playlists: List<Playlist>,
+    playlistSongCounts: Map<Long, Int>,
     favoriteSongs: List<Song>,
     onOpenFavorites: () -> Unit,
+    onOpenPlaylist: (Long) -> Unit,
     onCreatePlaylist: (String) -> Unit
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -439,6 +445,14 @@ private fun PlaylistsTab(
                         overflow = TextOverflow.Ellipsis
                     )
                 },
+                supportingContent = {
+                    Text(
+                        stringResource(R.string.format_songs, playlistSongCounts[playlist.id] ?: 0),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
                 leadingContent = {
                     Box(
                         modifier = Modifier
@@ -455,7 +469,8 @@ private fun PlaylistsTab(
                         )
                     }
                 },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable { onOpenPlaylist(playlist.id) }
             )
         }
         if (favoriteSongs.isNotEmpty()) {

@@ -72,6 +72,8 @@ internal fun TrackDetailContent(
     albumGrid: (LazyListScope.() -> Unit)? = null,
     onPlayNextItem: ((Song) -> Unit)? = null,
     onAddToQueueItem: ((Song) -> Unit)? = null,
+    onAddToPlaylistItem: ((Song) -> Unit)? = null,
+    onRemoveFromPlaylistItem: ((Song) -> Unit)? = null,
     onDeleteItem: ((Song) -> Unit)? = null,
     favoriteIds: Set<Long> = emptySet(),
     onToggleFavoriteItem: ((Song) -> Unit)? = null
@@ -212,7 +214,8 @@ SegmentedButton(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             if (onPlayNextItem != null || onAddToQueueItem != null || onDeleteItem != null ||
-                                onToggleFavoriteItem != null
+                                onToggleFavoriteItem != null || onAddToPlaylistItem != null ||
+                                onRemoveFromPlaylistItem != null
                             ) {
                                 Box {
                                     IconButton(onClick = { menuExpanded = true }) {
@@ -227,6 +230,8 @@ SegmentedButton(
                                         onDismissRequest = { menuExpanded = false },
                                         onPlayNext = onPlayNextItem?.let { next -> { next(song) } },
                                         onAddToQueue = onAddToQueueItem?.let { queue -> { queue(song) } },
+                                        onAddToPlaylist = onAddToPlaylistItem?.let { add -> { add(song) } },
+                                        onRemoveFromPlaylist = onRemoveFromPlaylistItem?.let { remove -> { remove(song) } },
                                         onDelete = onDeleteItem?.let { delete -> { delete(song) } },
                                         isFavorite = song.id in favoriteIds,
                                         onToggleFavorite = onToggleFavoriteItem?.let { fav -> { fav(song) } }

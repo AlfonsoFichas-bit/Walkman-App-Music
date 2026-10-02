@@ -31,12 +31,26 @@ class PlayerPersistence(private val context: Context, private val database: AppD
     fun observePlaylists(): Flow<List<Playlist>> =
         database.playlistDao().observePlaylists().map { list -> list.map { it.toPlaylist() } }
 
+    fun observePlaylist(playlistId: Long): Flow<Playlist?> =
+        database.playlistDao().observeById(playlistId).map { it?.toPlaylist() }
+
+    fun observePlaylistSongCounts(): Flow<Map<Long, Int>> =
+        database.playlistDao().observeSongCounts()
+            .map { list -> list.associate { it.playlistId to it.songCount } }
+
+    fun observeSongsInPlaylist(playlistId: Long): Flow<List<Song>> =
+        database.playlistSongDao().observeSongs(playlistId).map { list -> list.map { it.toSong() } }
+
     suspend fun createPlaylist(name: String) {
         database.playlistDao().insert(PlaylistEntity(name = name))
     }
 
     suspend fun addSongToPlaylist(playlistId: Long, song: Song) {
         database.playlistSongDao().insert(song.toPlaylistSongEntity(playlistId))
+    }
+
+    suspend fun removeSongFromPlaylist(playlistId: Long, songId: Long) {
+        database.playlistSongDao().remove(playlistId, songId)
     }
 
     suspend fun removeSongFromPlaylists(songId: Long) {

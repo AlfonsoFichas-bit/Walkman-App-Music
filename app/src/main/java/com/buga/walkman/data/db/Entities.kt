@@ -78,3 +78,8 @@ data class PlaylistSongEntity(
     val uri: String,
     val addedAt: Long
 )
+
+data class PlaylistSongCount(
+    val playlistId: Long,
+    val songCount: Int
+)

@@ -64,6 +64,7 @@ import com.buga.walkman.viewmodel.LibraryViewModel
 import com.buga.walkman.viewmodel.PlayerControllerViewModel
 import com.buga.walkman.ui.screens.detail.AlbumDetailScreen
 import com.buga.walkman.ui.screens.detail.ArtistDetailScreen
+import com.buga.walkman.ui.screens.detail.PlaylistDetailScreen
 import com.buga.walkman.ui.screens.HomeScreen
 import com.buga.walkman.ui.screens.LibraryScreen
 import com.buga.walkman.ui.screens.QueueScreen
@@ -304,7 +305,8 @@ private fun WalkmanNavHost(
             onTabSelected = onLibraryTabSelected,
             onOpenAlbum = { albumId -> navController.navigate("album/$albumId") },
             onOpenArtist = { artistId -> navController.navigate("artist/$artistId") },
-            onOpenFavorites = { navController.navigate("favorites") }
+            onOpenFavorites = { navController.navigate("favorites") },
+            onOpenPlaylist = { playlistId -> navController.navigate("playlist/$playlistId") }
         )
     }
     composable("home") {
@@ -344,6 +346,13 @@ private fun WalkmanNavHost(
         }
         composable("favorites") {
             FavoritesScreen(
+                playerViewModel = playerViewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("playlist/{playlistId}") { entry ->
+            PlaylistDetailScreen(
+                playlistId = entry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L,
                 playerViewModel = playerViewModel,
                 onBack = { navController.popBackStack() }
             )

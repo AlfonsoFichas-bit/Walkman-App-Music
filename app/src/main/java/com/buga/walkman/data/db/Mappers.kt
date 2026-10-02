@@ -104,3 +104,15 @@ fun Song.toPlaylistSongEntity(
     uri = uri.toString(),
     addedAt = addedAt
 )
+
+fun PlaylistSongEntity.toSong() = Song(
+    id = songId,
+    title = title,
+    artist = artist,
+    album = album,
+    albumId = albumId,
+    artistId = artistId,
+    duration = duration,
+    trackNumber = trackNumber,
+    uri = android.net.Uri.parse(uri)
+)

@@ -86,12 +86,24 @@ interface PlaylistDao {
     @Query("SELECT * FROM playlists ORDER BY createdAt ASC")
     fun observePlaylists(): Flow<List<PlaylistEntity>>
 
+    @Query("SELECT * FROM playlists WHERE id = :playlistId")
+    fun observeById(playlistId: Long): Flow<PlaylistEntity?>
+
+    @Query(
+        "SELECT playlistId AS playlistId, COUNT(*) AS songCount " +
+            "FROM playlist_songs GROUP BY playlistId"
+    )
+    fun observeSongCounts(): Flow<List<PlaylistSongCount>>
+
     @Insert
     suspend fun insert(playlist: PlaylistEntity): Long
 }
 
 @Dao
 interface PlaylistSongDao {
+    @Query("SELECT * FROM playlist_songs WHERE playlistId = :playlistId ORDER BY addedAt ASC, songId ASC")
+    fun observeSongs(playlistId: Long): Flow<List<PlaylistSongEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: PlaylistSongEntity)
 

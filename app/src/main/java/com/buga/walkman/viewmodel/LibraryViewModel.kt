@@ -5,9 +5,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.buga.walkman.data.LibraryEvents
 import com.buga.walkman.data.MediaRepository
+import com.buga.walkman.data.PlayerPersistence
+import com.buga.walkman.data.db.AppDatabase
 import com.buga.walkman.data.db.FolderState
 import com.buga.walkman.model.Album
 import com.buga.walkman.model.Artist
+import com.buga.walkman.model.Playlist
 import com.buga.walkman.model.Song
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -81,6 +84,36 @@ open class TrackListViewModel(
             LibraryEvents.reload.collect {
                 _tracks.value = loader(MediaRepository(getApplication()))
             }
+        }
+    }
+}
+
+class PlaylistDetailViewModel(
+    application: Application,
+    private val playlistId: Long
+) : AndroidViewModel(application) {
+
+    private val persistence =
+        PlayerPersistence(getApplication(), AppDatabase.getInstance(getApplication()))
+
+    private val _playlist = MutableStateFlow<Playlist?>(null)
+    val playlist: StateFlow<Playlist?> = _playlist.asStateFlow()
+
+    private val _songs = MutableStateFlow<List<Song>>(emptyList())
+    val songs: StateFlow<List<Song>> = _songs.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            persistence.observePlaylist(playlistId).collect { _playlist.value = it }
+        }
+        viewModelScope.launch {
+            persistence.observeSongsInPlaylist(playlistId).collect { _songs.value = it }
+        }
+    }
+
+    fun removeSong(songId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            persistence.removeSongFromPlaylist(playlistId, songId)
         }
     }
 }

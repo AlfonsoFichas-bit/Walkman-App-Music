@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.PlaylistRemove
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Icon
@@ -32,6 +33,7 @@ fun TrackActionsMenu(
     onPlayNext: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
+    onRemoveFromPlaylist: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
@@ -55,6 +57,14 @@ fun TrackActionsMenu(
         }
         if (onAddToPlaylist != null) {
             add(MenuEntry(stringResource(R.string.add_to_playlist), Icons.Filled.PlaylistAdd) { onAddToPlaylist() })
+        }
+        if (onRemoveFromPlaylist != null) {
+            add(
+                MenuEntry(
+                    stringResource(R.string.remove_from_playlist),
+                    Icons.Filled.PlaylistRemove
+                ) { onRemoveFromPlaylist() }
+            )
         }
         if (onToggleFavorite != null) {
             add(
